@@ -26,42 +26,6 @@ public:
         generator = std::mt19937(rd());
     }
 
-    void get_low_cost_regions(double *map, int x_size, int y_size, double* armstart_anglesV_rad,
-                              double* armgoal_anglesV_rad) {
-        // std::ofstream m_log_fstream;
-        // m_log_fstream.open("map_low_cost.txt", std::ios::trunc);
-
-        int start_x, start_y;
-        int goal_x, goal_y;
-
-        // get start and goal coordinates of end effector from the configurations
-        int x0, y0;
-        int x1 = ((double)x_size)/2.0;
-	    int y1 = 0;
-        for (int i = 0; i < numofDOFs; i++) {
-            x0 = x1;
-            y0 = y1;
-            x1 = x0 + LINKLENGTH_CELLS*cos(2*PI-armstart_anglesV_rad[i]);
-            y1 = y0 - LINKLENGTH_CELLS*sin(2*PI-armstart_anglesV_rad[i]);
-        }
-        start_x = (int)x1;
-        start_y = (int)y1;
-
-        x1 = ((double)x_size)/2.0;
-        y1 = 0;
-        for (int i = 0; i < numofDOFs; i++) {
-            x0 = x1;
-            y0 = y1;
-            x1 = x0 + LINKLENGTH_CELLS*cos(2*PI-armgoal_anglesV_rad[i]);
-            y1 = y0 - LINKLENGTH_CELLS*sin(2*PI-armgoal_anglesV_rad[i]);
-        }
-        goal_x = (int)x1;
-        goal_y = (int)y1;
-
-        dijkstra_search(map, x_size, y_size, start_x, start_y, goal_x, goal_y);
-        tie(map, x_size, y_size) = loadMap("map_low_cost.txt");
-    }
-
     node new_node() {
         std::uniform_real_distribution<double> distribution(0.0, 2*PI);
 

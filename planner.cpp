@@ -41,8 +41,9 @@ void plannerRRT(
     std::vector<node> tree;
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
 
+    int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    rrt.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -123,8 +124,9 @@ void plannerRRTConnect(
     std::vector<node> tree_A, tree_B;
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
+    int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    rrt_connect.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -225,8 +227,9 @@ void plannerRRTStar(
     std::vector<node> tree;
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
 
+    int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    rrt_star.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -305,8 +308,9 @@ void plannerPRM(
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
+    int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    prm.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
 
     auto start = std::chrono::high_resolution_clock::now();    
 

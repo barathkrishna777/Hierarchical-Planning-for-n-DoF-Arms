@@ -6,7 +6,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
-
+#include <cmath>
 #include <tuple>
 #include <string>
 #include <stdexcept>
@@ -309,6 +309,23 @@ bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, doub
 	}
 	
 	return true;
+}
+
+bool isCoarseCellOccupied(int coarse_x, int coarse_y, int coarse_factor, 
+                          double* fine_map, int fine_x_size, int fine_y_size) {
+    int start_fine_x = coarse_x * coarse_factor;
+    int start_fine_y = coarse_y * coarse_factor;
+    int end_fine_x = std::min(start_fine_x + coarse_factor, fine_x_size);
+    int end_fine_y = std::min(start_fine_y + coarse_factor, fine_y_size);
+
+    for (int fine_y = start_fine_y; fine_y < end_fine_y; ++fine_y) {
+        for (int fine_x = start_fine_x; fine_x < end_fine_x; ++fine_x) {
+            if (fine_map[GETMAPINDEX(fine_x, fine_y, fine_x_size, fine_y_size)] == 1.0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 #endif // UTILS_H
