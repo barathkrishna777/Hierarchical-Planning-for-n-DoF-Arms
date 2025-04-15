@@ -274,7 +274,7 @@ void plannerPRM(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 1000;
+    const int num_nodes = 200;
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
