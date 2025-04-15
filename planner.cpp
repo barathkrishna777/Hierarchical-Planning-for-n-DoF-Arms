@@ -41,6 +41,11 @@ void plannerRRT(
     std::vector<node> tree;
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
 
+    std::cout << "Identifying low cost regions" << std::endl;
+    rrt.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+
+    auto start = std::chrono::high_resolution_clock::now();    
+
     std::cout << "Building tree" << std::endl;
     rrt.build_tree(tree, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
@@ -58,6 +63,10 @@ void plannerRRT(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Time taken to build tree and find path: " << elapsed.count() << " seconds" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -114,6 +123,11 @@ void plannerRRTConnect(
     std::vector<node> tree_A, tree_B;
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
+    std::cout << "Identifying low cost regions" << std::endl;
+    rrt_connect.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+
+    auto start = std::chrono::high_resolution_clock::now();    
+
     std::cout << "Building tree" << std::endl;
     rrt_connect.build_tree(tree_A, tree_B, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
@@ -150,6 +164,10 @@ void plannerRRTConnect(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = stop - start;
+    std::cout << "Time taken to build trees and find path: " << elapsed.count() << " seconds" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -207,6 +225,11 @@ void plannerRRTStar(
     std::vector<node> tree;
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
 
+    std::cout << "Identifying low cost regions" << std::endl;
+    rrt_star.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+
+    auto start = std::chrono::high_resolution_clock::now();    
+
     std::cout << "Building tree" << std::endl;
     rrt_star.build_tree(tree, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
@@ -224,6 +247,10 @@ void plannerRRTStar(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Time taken to build tree and find path: " << elapsed.count() << " seconds" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {

@@ -1,3 +1,6 @@
+#ifndef DIJKSTRA_HPP
+#define DIJKSTRA_HPP
+
 #include "utils.h"
 
 struct dijkstraNode {
@@ -124,3 +127,5 @@ void dijkstra_search(double* map, int x_size, int y_size, int start_x, int start
     output_file.close();
     std::cout << "Output map written to map_low_cost.txt" << std::endl;
 }
+
+#endif
