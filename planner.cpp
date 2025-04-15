@@ -36,7 +36,7 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 1000;
+    const int num_nodes = 200;
 	double eps = 1.0;
     std::vector<node> tree;
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
@@ -118,7 +118,7 @@ void plannerRRTConnect(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 1000;
+    const int num_nodes = 200;
 	double eps = 1.0;
     std::vector<node> tree_A, tree_B;
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
@@ -220,7 +220,7 @@ void plannerRRTStar(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 1000;
+    const int num_nodes = 300;
 	double eps = 1.0;
     std::vector<node> tree;
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
