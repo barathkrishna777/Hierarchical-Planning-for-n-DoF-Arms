@@ -15,6 +15,7 @@
 #include <fstream> // For reading/writing files
 #include <assert.h>
 #include <queue>
+#include <chrono>
 
 #define GETMAPINDEX(X, Y, XSIZE, YSIZE) (Y*XSIZE + X)
 

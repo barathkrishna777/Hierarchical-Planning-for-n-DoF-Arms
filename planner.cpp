@@ -278,6 +278,11 @@ void plannerPRM(
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
+    std::cout << "Identifying low cost regions" << std::endl;
+    prm.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
+
+    auto start = std::chrono::high_resolution_clock::now();    
+
     std::cout << "Building roadmap" << std::endl;
     prm.build_roadmap(graph, num_nodes);
 
@@ -296,6 +301,10 @@ void plannerPRM(
 
     std::cout << "Running Dijkstra on the roadmap" << std::endl;
     std::vector<int> shortestPath = prm.dijkstra(graph, num_nodes, num_nodes + 1);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Time taken to build roadmap and find path: " << elapsed.count() << " seconds" << std::endl;
 
     // Check if a valid path was found
     if (shortestPath.empty()) {
