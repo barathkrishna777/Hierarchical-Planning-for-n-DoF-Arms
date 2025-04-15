@@ -278,6 +278,9 @@ void plannerPRM(
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
+    // measure time using chrono
+    auto start = std::chrono::high_resolution_clock::now();
+
     std::cout << "Building roadmap" << std::endl;
     prm.build_roadmap(graph, num_nodes);
 
@@ -306,6 +309,10 @@ void plannerPRM(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Time taken to build roadmap and find path: " << duration.count()/1000 << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
