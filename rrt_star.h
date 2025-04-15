@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include "utils.h"
-#include "dijkstra.hpp"
+#include "astar.hpp"
 
 class RRT_Star_Planner {
 public:
@@ -61,7 +61,7 @@ public:
         goal_x = (int)x1;
         goal_y = (int)y1;
 
-        dijkstra_search(map, x_size, y_size, start_x, start_y, goal_x, goal_y);
+        astar_search(map, x_size, y_size, start_x, start_y, goal_x, goal_y);
         tie(map, x_size, y_size) = loadMap("map_low_cost.txt");
     }
 

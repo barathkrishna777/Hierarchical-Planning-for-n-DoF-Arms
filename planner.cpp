@@ -36,15 +36,12 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 1000;
 	double eps = 1.0;
     std::vector<node> tree;
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
 
-    std::cout << "Identifying low cost regions" << std::endl;
-    rrt.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
-
-    auto start = std::chrono::high_resolution_clock::now();    
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "Building tree" << std::endl;
     rrt.build_tree(tree, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
@@ -64,9 +61,9 @@ void plannerRRT(
 
     *planlength = static_cast<int>(shortestPath.size());
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Time taken to build tree and find path: " << elapsed.count() << " seconds" << std::endl;
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build tree and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -118,15 +115,12 @@ void plannerRRTConnect(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 1000;
 	double eps = 1.0;
     std::vector<node> tree_A, tree_B;
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
-    std::cout << "Identifying low cost regions" << std::endl;
-    rrt_connect.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
-
-    auto start = std::chrono::high_resolution_clock::now();    
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "Building tree" << std::endl;
     rrt_connect.build_tree(tree_A, tree_B, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
@@ -166,8 +160,8 @@ void plannerRRTConnect(
     *planlength = static_cast<int>(shortestPath.size());
 
     auto stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = stop - start;
-    std::cout << "Time taken to build trees and find path: " << elapsed.count() << " seconds" << std::endl;
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build trees and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -220,15 +214,12 @@ void plannerRRTStar(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 300;
+    const int num_nodes = 1000;
 	double eps = 1.0;
     std::vector<node> tree;
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
 
-    std::cout << "Identifying low cost regions" << std::endl;
-    rrt_star.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
-
-    auto start = std::chrono::high_resolution_clock::now();    
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "Building tree" << std::endl;
     rrt_star.build_tree(tree, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
@@ -248,9 +239,9 @@ void plannerRRTStar(
 
     *planlength = static_cast<int>(shortestPath.size());
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Time taken to build tree and find path: " << elapsed.count() << " seconds" << std::endl;
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build tree and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -301,14 +292,11 @@ void plannerPRM(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 1000;
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
-    std::cout << "Identifying low cost regions" << std::endl;
-    prm.get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad);
-
-    auto start = std::chrono::high_resolution_clock::now();    
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "Building roadmap" << std::endl;
     prm.build_roadmap(graph, num_nodes);
@@ -329,10 +317,6 @@ void plannerPRM(
     std::cout << "Running Dijkstra on the roadmap" << std::endl;
     std::vector<int> shortestPath = prm.dijkstra(graph, num_nodes, num_nodes + 1);
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Time taken to build roadmap and find path: " << elapsed.count() << " seconds" << std::endl;
-
     // Check if a valid path was found
     if (shortestPath.empty()) {
         std::cout << "No valid path found!" << std::endl;
@@ -342,6 +326,10 @@ void plannerPRM(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build roadmap and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
