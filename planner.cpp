@@ -62,8 +62,8 @@ void plannerRRT(
     *planlength = static_cast<int>(shortestPath.size());
 
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Time taken to build tree and find path: " << duration.count()/1000 << "s" << std::endl;
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build tree and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -160,8 +160,8 @@ void plannerRRTConnect(
     *planlength = static_cast<int>(shortestPath.size());
 
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Time taken to build trees and find path: " << duration.count()/1000 << "s" << std::endl;
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build trees and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -240,8 +240,8 @@ void plannerRRTStar(
     *planlength = static_cast<int>(shortestPath.size());
 
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Time taken to build tree and find path: " << duration.count()/1000 << "s" << std::endl;
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build tree and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -328,8 +328,8 @@ void plannerPRM(
     *planlength = static_cast<int>(shortestPath.size());
 
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Time taken to build roadmap and find path: " << duration.count()/1000 << "s" << std::endl;
+    auto duration = std::chrono::duration<double>(stop - start);
+    std::cout << "Time taken to build roadmap and find path: " << duration.count() << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
