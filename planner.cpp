@@ -41,6 +41,8 @@ void plannerRRT(
     std::vector<node> tree;
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     std::cout << "Building tree" << std::endl;
     rrt.build_tree(tree, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
@@ -58,6 +60,10 @@ void plannerRRT(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Time taken to build tree and find path: " << duration.count()/1000 << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -114,6 +120,8 @@ void plannerRRTConnect(
     std::vector<node> tree_A, tree_B;
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     std::cout << "Building tree" << std::endl;
     rrt_connect.build_tree(tree_A, tree_B, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
@@ -150,6 +158,10 @@ void plannerRRTConnect(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Time taken to build trees and find path: " << duration.count()/1000 << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -207,6 +219,8 @@ void plannerRRTStar(
     std::vector<node> tree;
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     std::cout << "Building tree" << std::endl;
     rrt_star.build_tree(tree, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
@@ -224,6 +238,10 @@ void plannerRRTStar(
     }
 
     *planlength = static_cast<int>(shortestPath.size());
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Time taken to build tree and find path: " << duration.count()/1000 << "s" << std::endl;
 
     // Free old plan memory before allocating a new one
     if (*plan != nullptr) {
@@ -278,7 +296,6 @@ void plannerPRM(
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
-    // measure time using chrono
     auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "Building roadmap" << std::endl;
