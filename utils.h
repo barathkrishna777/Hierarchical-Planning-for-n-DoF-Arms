@@ -328,4 +328,119 @@ bool isCoarseCellOccupied(int coarse_x, int coarse_y, int coarse_factor,
     return false;
 }
 
+inline double wrap2pi(double angle) {
+	angle = fmod(angle, 2.0 * PI);
+	if (angle < 0.0) {
+		angle += 2.0 * PI;
+	}
+	return angle;
+}
+
+bool forwardKinematics(const double* angles, int numofDOFs, int x_size,
+                       std::vector<std::pair<double, double>>& joint_positions_out) {
+
+    if (numofDOFs <= 0) 
+		return false;
+
+    if (joint_positions_out.size() != static_cast<size_t>(numofDOFs + 1)) {
+        joint_positions_out.resize(numofDOFs + 1);
+    }
+
+    double current_x = static_cast<double>(x_size) / 2.0;
+    double current_y = 0.0;
+    joint_positions_out[0] = {current_x, current_y};
+
+    double accumulated_angle = 0.0;
+
+    for(int i = 0; i < numofDOFs; i++){
+        double link_angle_rad = angles[i];
+
+        current_x += LINKLENGTH_CELLS * cos(link_angle_rad);
+        current_y += LINKLENGTH_CELLS * sin(link_angle_rad);
+
+        joint_positions_out[i + 1] = {current_x, current_y};
+    }
+
+    return true;
+}
+
+double* inverseKinematics(double target_x, double target_y, int numofDOFs, int x_size,
+                           double initial_guess[] = nullptr,
+                           int max_iterations = 100, double tolerance = 1.0) {
+
+    if (numofDOFs <= 0) return nullptr;
+
+    double base_x = static_cast<double>(x_size) / 2.0;
+    double base_y = 0.0;
+
+    double target_dist_sq = pow(target_x - base_x, 2) + pow(target_y - base_y, 2);
+    double max_reach = numofDOFs * LINKLENGTH_CELLS;
+    if (target_dist_sq > pow(max_reach, 2) + tolerance) {
+        return nullptr;
+    }
+     if (target_dist_sq < 1e-6 && numofDOFs > 0) {
+         // Handle singularity at the base: return a default config (e.g., all zeros)
+         // if the target is exactly the base.
+         // std::cerr << "IK Warning: Target is very close to the base." << std::endl;
+         // For simplicity, returning nullptr, but a specific configuration might be better.
+         // return nullptr;
+     }
+
+
+    double* current_angles = new double[numofDOFs];
+    if (initial_guess != nullptr) {
+        for (int i = 0; i < numofDOFs; ++i) {
+            current_angles[i] = wrap2pi(initial_guess[i]);
+        }
+    } else {
+        for (int i = 0; i < numofDOFs; ++i) {
+            current_angles[i] = 0.0;
+        }
+    }
+
+    std::vector<std::pair<double, double>> joint_positions(numofDOFs + 1);
+
+
+    // --- CCD Iteration Loop ---
+    for (int iter = 0; iter < max_iterations; ++iter) {
+
+        forwardKinematics(current_angles, numofDOFs, x_size, joint_positions);
+        double current_ee_x = joint_positions[numofDOFs].first;
+        double current_ee_y = joint_positions[numofDOFs].second;
+
+        double error_sq = pow(current_ee_x - target_x, 2) + pow(current_ee_y - target_y, 2);
+        if (error_sq < tolerance * tolerance) {
+             for (int i = 0; i < numofDOFs; ++i) {
+                 current_angles[i] = wrap2pi(current_angles[i]);
+             }
+            return current_angles;
+        }
+
+        for (int j = numofDOFs - 1; j >= 0; --j) {
+            forwardKinematics(current_angles, numofDOFs, x_size, joint_positions);
+            double joint_j_x = joint_positions[j].first;
+            double joint_j_y = joint_positions[j].second;
+            double current_ee_x_loop = joint_positions[numofDOFs].first;
+            double current_ee_y_loop = joint_positions[numofDOFs].second;
+
+            double vec_cur_x = current_ee_x_loop - joint_j_x;
+            double vec_cur_y = current_ee_y_loop - joint_j_y;
+            double vec_tar_x = target_x - joint_j_x;
+            double vec_tar_y = target_y - joint_j_y;
+
+            double angle_cur = atan2(vec_cur_y, vec_cur_x);
+            double angle_tar = atan2(vec_tar_y, vec_tar_x);
+            double delta_angle = angle_tar - angle_cur;
+
+            current_angles[j] = wrap2pi(current_angles[j] + delta_angle);
+        }
+    }
+
+    forwardKinematics(current_angles, numofDOFs, x_size, joint_positions);
+    double final_error = sqrt(pow(joint_positions[numofDOFs].first - target_x, 2) + pow(joint_positions[numofDOFs].second - target_y, 2));
+
+    delete[] current_angles;
+    return nullptr;
+}
+
 #endif // UTILS_H

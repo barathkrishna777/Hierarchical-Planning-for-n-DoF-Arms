@@ -36,7 +36,7 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 500;
 	double eps = 1.0;
     std::vector<node> tree;
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
@@ -119,7 +119,7 @@ void plannerRRTConnect(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 500;
 	double eps = 1.0;
     std::vector<node> tree_A, tree_B;
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
@@ -222,7 +222,7 @@ void plannerRRTStar(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 300;
+    const int num_nodes = 500;
 	double eps = 1.0;
     std::vector<node> tree;
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
@@ -304,7 +304,7 @@ void plannerPRM(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 500;
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
@@ -384,32 +384,67 @@ void plannerPRM(
 }
 
 int main(int argc, char** argv) {
-	double* map;
-	int x_size, y_size, vertices = 0;
+    double* map;
+    int x_size, y_size, vertices = 0;
 
-	tie(map, x_size, y_size) = loadMap(argv[1]);
-	const int numOfDOFs = std::stoi(argv[2]);
-	double* startPos = doubleArrayFromString(argv[3]);
-	double* goalPos = doubleArrayFromString(argv[4]);
-	int whichPlanner = std::stoi(argv[5]);
-	string outputFile = argv[6];
+    tie(map, x_size, y_size) = loadMap(argv[1]);
+    const int numOfDOFs = std::stoi(argv[2]);
 
-	if(!IsValidArmConfiguration(startPos, numOfDOFs, map, x_size, y_size)||
-			!IsValidArmConfiguration(goalPos, numOfDOFs, map, x_size, y_size)) {
-		throw runtime_error("Invalid start or goal configuration!\n");
-	}
+    double start_x, start_y, goal_x, goal_y;
+    std::vector<std::string> start_coords = split(argv[3], ",");
+    std::vector<std::string> goal_coords = split(argv[4], ",");
 
-	///////////////////////////////////////
-	//// Feel free to modify anything below. Be careful modifying anything above.
+    if (start_coords.size() != 2 || goal_coords.size() != 2) {
+        throw std::runtime_error("Invalid start or goal position format. Use 'x,y'.");
+    }
+    try {
+        start_x = std::stod(start_coords[0]);
+        start_y = std::stod(start_coords[1]);
+        goal_x = std::stod(goal_coords[0]);
+        goal_y = std::stod(goal_coords[1]);
+    } catch (const std::invalid_argument& e) {
+        throw std::runtime_error("Invalid number format in start/goal position.");
+    } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Number out of range in start/goal position.");
+    }
+
+    // double* startPos = doubleArrayFromString(argv[3]);
+    // double* goalPos = doubleArrayFromString(argv[4]);
+    int whichPlanner = std::stoi(argv[5]);
+    string outputFile = argv[6];
+
+    std::cout << "Calculating start angles using IK for (" << start_x << ", " << start_y << ")..." << std::endl;
+    double* startPos = inverseKinematics(start_x, start_y, numOfDOFs, x_size);
+    if (!startPos) {
+        delete[] map;
+        throw std::runtime_error("Inverse Kinematics failed to find a solution for the start position!");
+    }
+
+    std::cout << "Calculating goal angles using IK for (" << goal_x << ", " << goal_y << ")..." << std::endl;
+    double* goalPos = inverseKinematics(goal_x, goal_y, numOfDOFs, x_size);
+    if (!goalPos) {
+        delete[] startPos;
+        delete[] map;
+        throw std::runtime_error("Inverse Kinematics failed to find a solution for the goal position!");
+    }
+
+    std::cout << "Validating start/goal configurations..." << std::endl;
+    if (!IsValidArmConfiguration(startPos, numOfDOFs, map, x_size, y_size)) {
+        delete[] startPos;
+        delete[] goalPos;
+        delete[] map;
+        throw runtime_error("Start configuration calculated by IK is invalid (collides with obstacles)!");
+    }
+    if (!IsValidArmConfiguration(goalPos, numOfDOFs, map, x_size, y_size)) {
+        delete[] startPos;
+        delete[] goalPos;
+        delete[] map;
+        throw runtime_error("Goal configuration calculated by IK is invalid (collides with obstacles)!");
+    }
+    std::cout << "Start/goal configurations validated." << std::endl;
 
 	double** plan = NULL;
 	int planlength = 0;
-	// planner(map, x_size, y_size, startPos, goalPos, numOfDOFs, &plan, &planlength);
-
-	//// Feel free to modify anything above.
-	//// If you modify something below, please change it back afterwards as the 
-	//// grading script will not work.
-	///////////////////////////////////////
 
 	if (whichPlanner == PRM) {
 		std::cout << "Using PRM" << std::endl;
@@ -436,24 +471,19 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-    // Your solution's path should start with startPos and end with goalPos
     if (!equalDoubleArrays(plan[0], startPos, numOfDOFs) || 
     	!equalDoubleArrays(plan[planlength-1], goalPos, numOfDOFs)) {
 		throw std::runtime_error("Start or goal position not matching");
 	}
 
-	/** Saves the solution to output file
-	 * Do not modify the output log file output format as it is required for visualization
-	 * and for grading.
-	 */
 	std::ofstream m_log_fstream;
-	m_log_fstream.open(outputFile, std::ios::trunc); // Creates new or replaces existing file
+	m_log_fstream.open(outputFile, std::ios::trunc);
 	if (!m_log_fstream.is_open()) {
 		throw std::runtime_error("Cannot open file");
 	}
-	m_log_fstream << argv[1] << endl; // Write out map name first
-	/// Then write out all the joint angles in the plan sequentially
-	for (int i = 0; i < planlength; ++i) {
+	m_log_fstream << argv[1] << endl;
+
+    for (int i = 0; i < planlength; ++i) {
 		for (int k = 0; k < numOfDOFs; ++k) {
 			m_log_fstream << plan[i][k] << ",";
 		}
