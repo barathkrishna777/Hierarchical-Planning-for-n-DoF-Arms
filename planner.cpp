@@ -36,16 +36,16 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 500;
+    const int num_nodes = 100;
 	double eps = 1.0;
     std::vector<node> tree;
 
-    int planner_coarse_factor = 4;
+    int planner_coarse_factor = 10;
     std::cout << "Identifying low cost regions" << std::endl;
 
     low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
     double* low_cost_map_data = nullptr;
-    tie(low_cost_map_data, x_size, y_size) = l.get_low_cost_regions();
+    tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
 
     RRT_Planner rrt(x_size, y_size, numofDOFs, low_cost_map_data, eps);
 
@@ -132,7 +132,7 @@ void plannerRRTConnect(
     
     low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
     double* low_cost_map_data = nullptr;
-    tie(low_cost_map_data, x_size, y_size) = l.get_low_cost_regions();
+    tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
 
     RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
@@ -239,7 +239,7 @@ void plannerRRTStar(
     
     low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
     double* low_cost_map_data = nullptr;
-    tie(low_cost_map_data, x_size, y_size) = l.get_low_cost_regions();
+    tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
 
     RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, low_cost_map_data, eps, armgoal_anglesV_rad);
 

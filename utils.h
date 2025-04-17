@@ -17,6 +17,7 @@
 #include <queue>
 #include <chrono>
 #include <set>
+#include <numeric>
 
 #define GETMAPINDEX(X, Y, XSIZE, YSIZE) (Y*XSIZE + X)
 
