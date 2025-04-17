@@ -13,17 +13,17 @@ class RRT_Star_Planner {
 public:
     int x_size, y_size;
     int numofDOFs;
-    double *map, *armgoal_anglesV_rad;
+    double *map, *armgoal_anglesV_rad, *low_cost_map;
     double eps;
     std::mt19937 generator;
     int goal_id = -1;
-    double* low_cost_map_data_ = nullptr;
 
-    RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double eps, double* armgoal_anglesV_rad) {
+    RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double *low_cost_map, double eps, double* armgoal_anglesV_rad) {
         this->x_size = x_size;
         this->y_size = y_size;
         this->numofDOFs = numofDOFs;
         this->map = map;
+        this->low_cost_map = low_cost_map;
         this->eps = eps;
         this->armgoal_anglesV_rad = armgoal_anglesV_rad;
         std::random_device rd;
@@ -50,7 +50,7 @@ public:
                 }
             }
             
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
                 return n;
             }
         }
@@ -167,7 +167,7 @@ public:
         std::vector<std::pair<int, double>> neighbors = find_neighbors(tree, id, r);
 
         for (auto neighbor : neighbors) {
-            if(obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map)) {
+            if(obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map, low_cost_map)) {
                 double c_new = tree[neighbor.first].g + neighbor.second;
                 if(c_new < tree[id].g) {
                     tree[id].g = c_new;
@@ -176,7 +176,10 @@ public:
             }
         }
         for (auto neighbor : neighbors) {
-            if(neighbor.first != tree[id].parent && obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map)) {
+            if(neighbor.first != tree[id].parent && 
+                    obstacle_free(tree[id], tree[neighbor.first], numofDOFs, 
+                    x_size, y_size, map, low_cost_map)) {
+
                 double c_new = tree[id].g + neighbor.second;
                 if (c_new < tree[neighbor.first].g) {
                     tree[neighbor.first].g = c_new;
@@ -259,7 +262,7 @@ public:
 
         while (current < path.size() - 1) {
             int next = current + 1;
-            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map)) {
+            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map)) {
                 next++;
             }
             shortcut_path.push_back(path[next]);

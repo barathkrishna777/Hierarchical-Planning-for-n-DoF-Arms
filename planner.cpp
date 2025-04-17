@@ -47,7 +47,7 @@ void plannerRRT(
     double* low_cost_map_data = nullptr;
     tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
 
-    RRT_Planner rrt(x_size, y_size, numofDOFs, low_cost_map_data, eps);
+    RRT_Planner rrt(x_size, y_size, numofDOFs, map, low_cost_map_data, eps);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -134,7 +134,7 @@ void plannerRRTConnect(
     double* low_cost_map_data = nullptr;
     tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
 
-    RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
+    RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, low_cost_map_data, eps);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -241,7 +241,7 @@ void plannerRRTStar(
     double* low_cost_map_data = nullptr;
     tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
 
-    RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, low_cost_map_data, eps, armgoal_anglesV_rad);
+    RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, low_cost_map_data, eps, armgoal_anglesV_rad);
 
     auto start = std::chrono::high_resolution_clock::now();    
 

@@ -251,8 +251,8 @@ int IsValidLineSegment(double x0, double y0, double x1, double y1, double*	map,
 	return 1;
 }
 
-int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
-			 int x_size, int y_size) {
+int IsValidArmConfiguration(double* angles, int numofDOFs, 
+							double*	map, int x_size, int y_size) {
     double x0,y0,x1,y1;
     int i;
 		
@@ -269,7 +269,37 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
 		//check the validity of the corresponding line segment
 		if(!IsValidLineSegment(x0,y0,x1,y1,map,x_size,y_size))
 			return 0;
-	}    
+	}
+	//check the end effector position
+	
+	return 1;
+}
+
+int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map, 
+							double* low_cost_map, int x_size, int y_size) {
+    double x0,y0,x1,y1;
+    int i;
+		
+	 //iterate through all the links starting with the base
+	x1 = ((double)x_size)/2.0;
+	y1 = 0;
+	for(i = 0; i < numofDOFs; i++){
+		//compute the corresponding line segment
+		x0 = x1;
+		y0 = y1;
+		x1 = x0 + LINKLENGTH_CELLS*cos(2*PI-angles[i]);
+		y1 = y0 - LINKLENGTH_CELLS*sin(2*PI-angles[i]);
+
+		//check the validity of the corresponding line segment
+		if(!IsValidLineSegment(x0,y0,x1,y1,map,x_size,y_size))
+			return 0;
+	}
+	//check the end effector position
+	int end_effector_idx = GETMAPINDEX((int)x1, (int)y1, x_size, y_size);
+	if (low_cost_map[end_effector_idx] == 1.0) {
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -307,6 +337,23 @@ bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, doub
 			config[j] = n1.angles[j] + ((double)(i) / (numofsamples - 1)) * (n2.angles[j] - n1.angles[j]);
 
 		if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size))
+			return false;
+	}
+	
+	return true;
+}
+
+bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, 
+				   double* map, double* low_cost_map) {
+	double dist = distance(n1, n2);
+	int numofsamples = std::max(1, (int)(dist / (PI / 100)));
+
+	std::vector<double> config(numofDOFs);
+	for (int i = 0; i < numofsamples; i++) {
+		for (int j = 0; j < numofDOFs; j++)
+			config[j] = n1.angles[j] + ((double)(i) / (numofsamples - 1)) * (n2.angles[j] - n1.angles[j]);
+
+		if (!IsValidArmConfiguration(config.data(), numofDOFs, map, low_cost_map, x_size, y_size))
 			return false;
 	}
 	

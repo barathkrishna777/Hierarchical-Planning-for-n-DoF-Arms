@@ -12,16 +12,17 @@ class RRT_Connect_Planner {
 public:
     int x_size, y_size;
     int numofDOFs;
-    double *map;
+    double *map, *low_cost_map;
     double eps;
     std::mt19937 generator;
     int goal_id = -1;
 
-    RRT_Connect_Planner(int x_size, int y_size, int numofDOFs, double *map, double eps) {
+    RRT_Connect_Planner(int x_size, int y_size, int numofDOFs, double *map, double* low_cost_map, double eps) {
         this->x_size = x_size;
         this->y_size = y_size;
         this->numofDOFs = numofDOFs;
         this->map = map;
+        this->low_cost_map = low_cost_map;
         this->eps = eps;
         std::random_device rd;
         generator = std::mt19937(rd());
@@ -41,7 +42,7 @@ public:
                 n.angles.push_back(distribution(generator));
             }
             
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
                 return n;
             }
         }
@@ -147,7 +148,7 @@ public:
                 config[j] = tree[id].angles[j] + ((double)(i) / (numofsamples - 1)) * (n.angles[j] - tree[id].angles[j]);
             }
     
-            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size)) {
+            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
                 if (i == 0) {
                     node invalid_node;
                     invalid_node.id = -1;

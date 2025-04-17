@@ -189,8 +189,7 @@ def visualize_graph(map_file, planner_output_file, output_image="planner_graph.p
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Plot Map (Obstacles)
-    ax.imshow(1 - map_data.T, cmap='gray', origin='lower', extent=[0, map_width, 0, map_height], interpolation='none')
-
+    ax.imshow(1 - map_data, cmap='gray', origin='upper', extent=[0, map_width, 0, map_height], interpolation='none')
     # Calculate Base Position
     base_pos = [map_width / 2.0, 0]
 
