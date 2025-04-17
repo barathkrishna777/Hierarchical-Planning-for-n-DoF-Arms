@@ -36,14 +36,18 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 500;
 	double eps = 1.0;
     std::vector<node> tree;
-    RRT_Planner rrt(x_size, y_size, numofDOFs, map, eps);
 
     int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
+
+    low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
+    double* low_cost_map_data = nullptr;
+    tie(low_cost_map_data, x_size, y_size) = l.get_low_cost_regions();
+
+    RRT_Planner rrt(x_size, y_size, numofDOFs, low_cost_map_data, eps);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -119,14 +123,18 @@ void plannerRRTConnect(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 500;
 	double eps = 1.0;
     std::vector<node> tree_A, tree_B;
-    RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
     int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
+    
+    low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
+    double* low_cost_map_data = nullptr;
+    tie(low_cost_map_data, x_size, y_size) = l.get_low_cost_regions();
+
+    RRT_Connect_Planner rrt_connect(x_size, y_size, numofDOFs, map, eps);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -222,14 +230,18 @@ void plannerRRTStar(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 300;
+    const int num_nodes = 500;
 	double eps = 1.0;
     std::vector<node> tree;
-    RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
 
     int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
+    
+    low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
+    double* low_cost_map_data = nullptr;
+    tie(low_cost_map_data, x_size, y_size) = l.get_low_cost_regions();
+
+    RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, low_cost_map_data, eps, armgoal_anglesV_rad);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -304,13 +316,12 @@ void plannerPRM(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 200;
+    const int num_nodes = 500;
     std::vector<node> graph;
     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
     int planner_coarse_factor = 4;
     std::cout << "Identifying low cost regions" << std::endl;
-    get_low_cost_regions(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
 
     auto start = std::chrono::high_resolution_clock::now();    
 
@@ -394,22 +405,15 @@ int main(int argc, char** argv) {
 	int whichPlanner = std::stoi(argv[5]);
 	string outputFile = argv[6];
 
+    std::cout << "Map file: " << argv[1] << std::endl;
+
 	if(!IsValidArmConfiguration(startPos, numOfDOFs, map, x_size, y_size)||
 			!IsValidArmConfiguration(goalPos, numOfDOFs, map, x_size, y_size)) {
 		throw runtime_error("Invalid start or goal configuration!\n");
 	}
 
-	///////////////////////////////////////
-	//// Feel free to modify anything below. Be careful modifying anything above.
-
 	double** plan = NULL;
 	int planlength = 0;
-	// planner(map, x_size, y_size, startPos, goalPos, numOfDOFs, &plan, &planlength);
-
-	//// Feel free to modify anything above.
-	//// If you modify something below, please change it back afterwards as the 
-	//// grading script will not work.
-	///////////////////////////////////////
 
 	if (whichPlanner == PRM) {
 		std::cout << "Using PRM" << std::endl;
@@ -436,24 +440,19 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-    // Your solution's path should start with startPos and end with goalPos
     if (!equalDoubleArrays(plan[0], startPos, numOfDOFs) || 
     	!equalDoubleArrays(plan[planlength-1], goalPos, numOfDOFs)) {
 		throw std::runtime_error("Start or goal position not matching");
 	}
 
-	/** Saves the solution to output file
-	 * Do not modify the output log file output format as it is required for visualization
-	 * and for grading.
-	 */
 	std::ofstream m_log_fstream;
-	m_log_fstream.open(outputFile, std::ios::trunc); // Creates new or replaces existing file
+	m_log_fstream.open(outputFile, std::ios::trunc);
 	if (!m_log_fstream.is_open()) {
 		throw std::runtime_error("Cannot open file");
 	}
-	m_log_fstream << argv[1] << endl; // Write out map name first
-	/// Then write out all the joint angles in the plan sequentially
-	for (int i = 0; i < planlength; ++i) {
+	m_log_fstream << argv[1] << endl;
+
+    for (int i = 0; i < planlength; ++i) {
 		for (int k = 0; k < numOfDOFs; ++k) {
 			m_log_fstream << plan[i][k] << ",";
 		}

@@ -16,6 +16,7 @@ public:
     double eps;
     std::mt19937 generator;
     int goal_id = -1;
+    double* low_cost_map_data_ = nullptr;
 
     RRT_Planner(int x_size, int y_size, int numofDOFs, double *map, double eps) {
         this->x_size = x_size;

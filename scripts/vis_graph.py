@@ -7,7 +7,7 @@ import os # To check file existence
 import re # For parsing the new format
 
 # --- Constants ---
-LINK_LENGTH = 100 # Must match LINKLENGTH_CELLS in C++ code
+LINK_LENGTH = 100
 
 # --- Helper Functions ---
 

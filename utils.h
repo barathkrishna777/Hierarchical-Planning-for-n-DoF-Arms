@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <queue>
 #include <chrono>
+#include <set>
 
 #define GETMAPINDEX(X, Y, XSIZE, YSIZE) (Y*XSIZE + X)
 
@@ -23,7 +24,7 @@
 #define numDirections 8
 const int dx[numDirections] = { 1, 0, -1, 0, 1, -1, -1, 1 };
 const int dy[numDirections] = { 0, 1, 0, -1, 1, -1, 1, -1 };
-const double move_cost[numDirections] = { 1.0, 1.0, 1.0, 1.0, sqrt(2), sqrt(2), sqrt(2), sqrt(2) };
+const double move_cost[numDirections] = { 10, 10, 10, 10, sqrt(2)*10, sqrt(2)*10, sqrt(2)*10, sqrt(2)*10 };
 
 #if !defined(MAX)
 #define	MAX(A, B)	((A) > (B) ? (A) : (B))
