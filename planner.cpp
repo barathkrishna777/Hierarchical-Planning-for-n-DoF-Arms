@@ -36,8 +36,8 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 100;
-	double eps = 1.0;
+    const int num_nodes = 5000;
+	double eps = 1;
     std::vector<node> tree;
 
     int planner_coarse_factor = 10;
@@ -230,7 +230,7 @@ void plannerRRTStar(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 500;
+    const int num_nodes = 5000;
 	double eps = 1.0;
     std::vector<node> tree;
 
@@ -304,95 +304,95 @@ void plannerRRTStar(
     std::cout << "Vertices saved to file!" << std::endl;
 }
 
-// PRM Planner
-void plannerPRM(
-    double *map,
-    int x_size,
-    int y_size,
-    double *armstart_anglesV_rad,
-    double *armgoal_anglesV_rad,
-    int numofDOFs,
-    double ***plan,
-    int *planlength,
-    int &vertices)
-{
-    const int num_nodes = 500;
-    std::vector<node> graph;
-    PRM_Planner prm(x_size, y_size, numofDOFs, map);
+// // PRM Planner
+// void plannerPRM(
+//     double *map,
+//     int x_size,
+//     int y_size,
+//     double *armstart_anglesV_rad,
+//     double *armgoal_anglesV_rad,
+//     int numofDOFs,
+//     double ***plan,
+//     int *planlength,
+//     int &vertices)
+// {
+//     const int num_nodes = 500;
+//     std::vector<node> graph;
+//     PRM_Planner prm(x_size, y_size, numofDOFs, map);
 
-    int planner_coarse_factor = 4;
-    std::cout << "Identifying low cost regions" << std::endl;
+//     int planner_coarse_factor = 4;
+//     std::cout << "Identifying low cost regions" << std::endl;
 
-    auto start = std::chrono::high_resolution_clock::now();    
+//     auto start = std::chrono::high_resolution_clock::now();    
 
-    std::cout << "Building roadmap" << std::endl;
-    prm.build_roadmap(graph, num_nodes);
+//     std::cout << "Building roadmap" << std::endl;
+//     prm.build_roadmap(graph, num_nodes);
 
-    std::cout << "Querying roadmap with the start and goal nodes" << std::endl;
-    prm.query(graph, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
+//     std::cout << "Querying roadmap with the start and goal nodes" << std::endl;
+//     prm.query(graph, armstart_anglesV_rad, armgoal_anglesV_rad, num_nodes);
 
-    vertices = graph.size();
+//     vertices = graph.size();
 
-    // Ensure start and goal nodes have neighbors
-    if (graph[num_nodes].neighbors.empty() || graph[num_nodes + 1].neighbors.empty()) {
-        std::cout << "Start or goal node has no valid connections!" << std::endl;
-        *plan = nullptr;
-        *planlength = 0;
-        return;
-    }
+//     // Ensure start and goal nodes have neighbors
+//     if (graph[num_nodes].neighbors.empty() || graph[num_nodes + 1].neighbors.empty()) {
+//         std::cout << "Start or goal node has no valid connections!" << std::endl;
+//         *plan = nullptr;
+//         *planlength = 0;
+//         return;
+//     }
 
-    std::cout << "Running Dijkstra on the roadmap" << std::endl;
-    std::vector<int> shortestPath = prm.dijkstra(graph, num_nodes, num_nodes + 1);
+//     std::cout << "Running Dijkstra on the roadmap" << std::endl;
+//     std::vector<int> shortestPath = prm.dijkstra(graph, num_nodes, num_nodes + 1);
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Time taken to build roadmap and find path: " << elapsed.count() << " seconds" << std::endl;
+//     auto end = std::chrono::high_resolution_clock::now();
+//     std::chrono::duration<double> elapsed = end - start;
+//     std::cout << "Time taken to build roadmap and find path: " << elapsed.count() << " seconds" << std::endl;
 
-    // Check if a valid path was found
-    if (shortestPath.empty()) {
-        std::cout << "No valid path found!" << std::endl;
-        *plan = nullptr;
-        *planlength = 0;
-        return;
-    }
+//     // Check if a valid path was found
+//     if (shortestPath.empty()) {
+//         std::cout << "No valid path found!" << std::endl;
+//         *plan = nullptr;
+//         *planlength = 0;
+//         return;
+//     }
 
-    *planlength = static_cast<int>(shortestPath.size());
+//     *planlength = static_cast<int>(shortestPath.size());
 
-    // Free old plan memory before allocating a new one
-    if (*plan != nullptr) {
-        for (int i = 0; i < *planlength; ++i) {
-            free((*plan)[i]);
-        }
-        free(*plan);
-    }
+//     // Free old plan memory before allocating a new one
+//     if (*plan != nullptr) {
+//         for (int i = 0; i < *planlength; ++i) {
+//             free((*plan)[i]);
+//         }
+//         free(*plan);
+//     }
 
-    *plan = (double**)malloc(*planlength * sizeof(double*));
-    if (!*plan) {
-        std::cerr << "Memory allocation failed for plan!" << std::endl;
-        *planlength = 0;
-        return;
-    }
+//     *plan = (double**)malloc(*planlength * sizeof(double*));
+//     if (!*plan) {
+//         std::cerr << "Memory allocation failed for plan!" << std::endl;
+//         *planlength = 0;
+//         return;
+//     }
 
-    for (int i = 0; i < *planlength; ++i) {
-        (*plan)[i] = (double*)malloc(numofDOFs * sizeof(double));
-        if (!(*plan)[i]) {
-            std::cerr << "Memory allocation failed for plan[" << i << "]!" << std::endl;
-            *planlength = 0;
-            return;
-        }
+//     for (int i = 0; i < *planlength; ++i) {
+//         (*plan)[i] = (double*)malloc(numofDOFs * sizeof(double));
+//         if (!(*plan)[i]) {
+//             std::cerr << "Memory allocation failed for plan[" << i << "]!" << std::endl;
+//             *planlength = 0;
+//             return;
+//         }
 
-        for (int j = 0; j < numofDOFs; ++j) {
-            (*plan)[i][j] = graph[shortestPath[i]].angles[j];
-        }
-    }
+//         for (int j = 0; j < numofDOFs; ++j) {
+//             (*plan)[i][j] = graph[shortestPath[i]].angles[j];
+//         }
+//     }
 
-    std::cout << "Path successfully extracted!" << std::endl;
+//     std::cout << "Path successfully extracted!" << std::endl;
 
-    // write out the vertices to a file
-    prm.save_to_file(graph, shortestPath);
+//     // write out the vertices to a file
+//     prm.save_to_file(graph, shortestPath);
 
-    std::cout << "Vertices saved to file!" << std::endl;
-}
+//     std::cout << "Vertices saved to file!" << std::endl;
+// }
 
 int main(int argc, char** argv) {
 	double* map;
@@ -407,20 +407,20 @@ int main(int argc, char** argv) {
 
     std::cout << "Map file: " << argv[1] << std::endl;
 
-	if(!IsValidArmConfiguration(startPos, numOfDOFs, map, x_size, y_size)||
-			!IsValidArmConfiguration(goalPos, numOfDOFs, map, x_size, y_size)) {
+	if(!IsValidStartGoalConfig(startPos, numOfDOFs, map, x_size, y_size)||
+			!IsValidStartGoalConfig(goalPos, numOfDOFs, map, x_size, y_size)) {
 		throw runtime_error("Invalid start or goal configuration!\n");
 	}
 
 	double** plan = NULL;
 	int planlength = 0;
 
-	if (whichPlanner == PRM) {
-		std::cout << "Using PRM" << std::endl;
-        plannerPRM(map, x_size, y_size, startPos, goalPos, numOfDOFs, &plan, &planlength, vertices);
-    }
+	// if (whichPlanner == PRM) {
+	// 	std::cout << "Using PRM" << std::endl;
+    //     plannerPRM(map, x_size, y_size, startPos, goalPos, numOfDOFs, &plan, &planlength, vertices);
+    // }
 
-	else if (whichPlanner == RRT) {
+	if (whichPlanner == RRT) {
 		std::cout << "Using RRT" << std::endl;
 		plannerRRT(map, x_size, y_size, startPos, goalPos, numOfDOFs, &plan, &planlength, vertices);
 	}

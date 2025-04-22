@@ -5,7 +5,7 @@ import os
 import argparse
 
 # Constants
-LINKLENGTH_CELLS = 100.0
+LINKLENGTH_CELLS = 250.0
 PI = np.pi
 
 def load_map_data(filepath):

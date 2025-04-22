@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     }
 
     // Check if the configuration is valid
-    if (IsValidArmConfiguration(angles.data(), num_dofs, map, x_size, y_size)) {
+    if (IsValidStartGoalConfig(angles.data(), num_dofs, map, x_size, y_size)) {
         return 0;
     } else {
         return 1;

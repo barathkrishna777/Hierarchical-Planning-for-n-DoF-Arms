@@ -42,7 +42,7 @@ public:
                 n.angles.push_back(distribution(generator));
             }
             
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
                 return n;
             }
         }
@@ -138,7 +138,8 @@ public:
     node interpolate_eps(std::vector<node>& tree, int id, node n, double eps) {
         double dist = distance(tree[id], n);
         dist = std::min(dist, eps);
-        int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        // int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 20)));
     
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
@@ -148,7 +149,7 @@ public:
                 config[j] = tree[id].angles[j] + ((double)(i) / (numofsamples - 1)) * (n.angles[j] - tree[id].angles[j]);
             }
     
-            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
+            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size)) {
                 if (i == 0) {
                     node invalid_node;
                     invalid_node.id = -1;

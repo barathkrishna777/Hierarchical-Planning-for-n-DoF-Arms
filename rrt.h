@@ -50,7 +50,7 @@ public:
                 }
             }
             
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
                 return n;
             }
         }
@@ -68,28 +68,17 @@ public:
         tree.push_back(q_init);
     
         int goal_id = -1;
-        int attempts = 0;
     
         while (n < max_nodes) {
 
             node q_rand;
-            if (attempts == 5) {
-                // sample the goal node itself
-                q_rand.angles.assign(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
-                attempts = 0;
-                ++n;
+            q_rand = new_node(numofDOFs, armgoal_anglesV_rad);
+            int status = extend(tree, q_rand, armgoal_anglesV_rad);
+            if (status == 0) { // Trapped
                 continue;
             }
-            else {
-                q_rand = new_node(numofDOFs, armgoal_anglesV_rad);
-                int status = extend(tree, q_rand, armgoal_anglesV_rad);
-                if (status == 0) { // Trapped
-                    attempts++;
-                    continue;
-                }
-                else {  // Advanced or Reached
-                    ++n;
-                }
+            else {  // Advanced or Reached
+                ++n;
             }
         }
     }
@@ -121,7 +110,8 @@ public:
         double dist = distance(tree[id], n);
         dist = std::min(dist, eps);
     
-        int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        // int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 20)));
     
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
@@ -131,7 +121,7 @@ public:
                 config[j] = tree[id].angles[j] + ((double)(i) / (numofsamples - 1)) * (n.angles[j] - tree[id].angles[j]);
             }
     
-            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
+            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size)) {
                 if (i == 0) {
                     node invalid_node;
                     invalid_node.id = -1;
@@ -240,7 +230,7 @@ public:
 
         while (current < path.size() - 1) {
             int next = current + 1;
-            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map)) {
+            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map)) {
                 next++;
             }
             shortcut_path.push_back(path[next]);

@@ -18,6 +18,9 @@ public:
     std::mt19937 generator;
     int goal_id = -1;
 
+    const int REWIRE_BATCH = 10;
+    std::vector<int> batch_ids;
+
     RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double *low_cost_map, double eps, double* armgoal_anglesV_rad) {
         this->x_size = x_size;
         this->y_size = y_size;
@@ -28,6 +31,7 @@ public:
         this->armgoal_anglesV_rad = armgoal_anglesV_rad;
         std::random_device rd;
         generator = std::mt19937(rd());
+        batch_ids.reserve(REWIRE_BATCH);
     }
 
     node new_node(int numofDOFs, double* armgoal_anglesV_rad, double goal_bias_prob = 0.01) {
@@ -50,7 +54,7 @@ public:
                 }
             }
             
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
                 return n;
             }
         }
@@ -80,11 +84,21 @@ public:
             else {  // Advanced or Reached
                 ++n;
             }
+
+            batch_ids.push_back(tree.back().id);
+            // once buffer is full, rewire them all at once
+            if ((int)batch_ids.size() >= REWIRE_BATCH) {
+                for (int id : batch_ids)
+                    rewireSingle(tree, id);
+                batch_ids.clear();
+            }
+
             if (distance(tree.back(), q_goal) < min_dist_to_goal) {
                 min_dist_to_goal = distance(tree.back(), q_goal);
                 goal_id = tree.back().id;
             }
         }
+        for (int id : batch_ids) rewireSingle(tree, id);
     }
 
     int extend(std::vector<node>& tree, node& q_rand, double* armgoal_anglesV_rad) {
@@ -110,8 +124,6 @@ public:
             tree[q_extended.id].g = c_new;
         }
 
-        rewire(tree);
-
         // Check if we fully reached the target
         if (reached_distance < 1e-3) {
             return 2; // Reached
@@ -123,7 +135,8 @@ public:
     node interpolate_eps(std::vector<node>& tree, int id, node n) {
         double dist = distance(tree[id], n);
     
-        int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 20)));
+        // int numofsamples = std::max(2, (int)(dist / (PI / 20)));
     
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
@@ -154,6 +167,58 @@ public:
         return interpolated_node;
     }
 
+    void propagate_cost(std::vector<node>& tree, int id) {
+        for (auto& neighbor : tree[id].neighbors) {
+            int nid = neighbor.first;
+            if (tree[nid].parent == id) {
+                double dist = neighbor.second;
+                double new_cost = tree[id].g + dist;
+                if (new_cost < tree[nid].g) {
+                    tree[nid].g = new_cost;
+                    propagate_cost(tree, nid); // recurse
+                }
+            }
+        }
+    }
+
+    void rewireSingle(std::vector<node>& tree, int id) {
+        // compute the same radius you already do
+        int n = tree.size();
+        double delta = std::pow(PI, numofDOFs/2.0) / std::tgamma(1 + numofDOFs/2.0);
+        double gamma = 2 * std::pow(1 + 1.0/numofDOFs, 1.0/numofDOFs)
+                       * std::pow(1.0/delta, 1.0/numofDOFs);
+        double r = std::pow((gamma/delta) * std::log((double)n)/n, 1.0/numofDOFs);
+        r = std::min(r, eps);
+    
+        // find only neighbors within r of node `id`
+        auto neighbors = find_neighbors(tree, id, r);
+    
+        // (a) try rewiring from the new node -> each neighbor
+        for (auto &nb : neighbors) {
+            int nid = nb.first;
+            double dist = nb.second;
+            if (obstacle_free(tree[id], tree[nid], numofDOFs, x_size, y_size, map)) {
+                double candidate = tree[id].g + dist;
+                if (candidate < tree[nid].g) {
+                    tree[nid].g      = candidate;
+                    tree[nid].parent = id;
+                }
+            }
+        }
+        // (b) and back: neighbor -> new node
+        for (auto &nb : neighbors) {
+            int nid = nb.first;
+            double dist = nb.second;
+            if (obstacle_free(tree[nid], tree[id], numofDOFs, x_size, y_size, map)) {
+                double candidate = tree[nid].g + dist;
+                if (candidate < tree[id].g) {
+                    tree[id].g      = candidate;
+                    tree[id].parent = nid;
+                }
+            }
+        }
+    }
+
     void rewire(std::vector<node>& tree) {
         int n = tree.size();
         double delta = std::pow(PI, numofDOFs/2.0) / std::tgamma(1 + numofDOFs/2.0);
@@ -167,23 +232,24 @@ public:
         std::vector<std::pair<int, double>> neighbors = find_neighbors(tree, id, r);
 
         for (auto neighbor : neighbors) {
-            if(obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map, low_cost_map)) {
+            if(obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map)) {
                 double c_new = tree[neighbor.first].g + neighbor.second;
                 if(c_new < tree[id].g) {
                     tree[id].g = c_new;
                     tree[id].parent = neighbor.first;
+                    propagate_cost(tree, id);
                 }
             }
         }
         for (auto neighbor : neighbors) {
             if(neighbor.first != tree[id].parent && 
-                    obstacle_free(tree[id], tree[neighbor.first], numofDOFs, 
-                    x_size, y_size, map, low_cost_map)) {
+                    obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map)) {
 
                 double c_new = tree[id].g + neighbor.second;
                 if (c_new < tree[neighbor.first].g) {
                     tree[neighbor.first].g = c_new;
                     tree[neighbor.first].parent = id;
+                    propagate_cost(tree, neighbor.first);
                 }
             }
         }
@@ -262,7 +328,7 @@ public:
 
         while (current < path.size() - 1) {
             int next = current + 1;
-            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map)) {
+            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map)) {
                 next++;
             }
             shortcut_path.push_back(path[next]);
