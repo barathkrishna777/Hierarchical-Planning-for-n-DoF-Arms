@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('Agg') # No need to show it
+matplotlib.use('TkAgg') # No need to show it
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter  # For gif
@@ -49,7 +49,7 @@ def createSingleFrame(i, mapData, allPoses, includePrevious):
     ## Base position
     xBase = mapData.shape[0]//2
     yBase = 0
-    linkLength = 10
+    linkLength = 100
 
     xs, ys = [xBase], [yBase]
     for i in range(0, len(curPose)):
@@ -91,7 +91,8 @@ def viz():
     fig = plt.figure()
     ani = FuncAnimation(fig, createSingleFrame, repeat=False,
         frames=numFrames, fargs=(mapData, solution, args.incPrev))    
-    ani.save(args.gifFilepath, dpi=300, writer=PillowWriter(fps=args.fps))
+    plt.show()
+    ani.save(args.gifFilepath, dpi=600, writer=PillowWriter(fps=args.fps))
 
 if __name__ == "__main__":
     viz()

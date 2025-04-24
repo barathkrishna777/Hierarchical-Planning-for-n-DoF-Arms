@@ -173,6 +173,9 @@ def visualize_graph(map_file, planner_output_file, output_image="planner_graph.p
     except (FileNotFoundError, ValueError) as e:
         print(f"Error reading map file: {e}")
         return
+    orig_width = map_width
+    map_data = np.rot90(map_data, k=-1)
+    map_width, map_height = map_height, map_width
 
     # Parse the combined planner output file
     nodes, edges, path = parse_planner_output(planner_output_file)
@@ -189,7 +192,7 @@ def visualize_graph(map_file, planner_output_file, output_image="planner_graph.p
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Plot Map (Obstacles)
-    ax.imshow(1 - map_data, cmap='gray', origin='upper', extent=[0, map_width, 0, map_height], interpolation='none')
+    ax.imshow(1 - map_data, cmap='gray', origin='lower', extent=[0, map_width, 0, map_height], interpolation='none')
     # Calculate Base Position
     base_pos = [map_width / 2.0, 0]
 
@@ -202,11 +205,19 @@ def visualize_graph(map_file, planner_output_file, output_image="planner_graph.p
             angles = node_data.get('angles')
             if angles is not None:
                  end_effectors[node_id] = calculate_end_effector(angles, base_pos)
+                 for nid, pos in end_effectors.items():
+                    x, y = pos
+                    # CW90:  (x, y) → (y,  orig_width – x)
+                    end_effectors[nid] = np.array([ y, orig_width - x ])
             else:
                  print(f"Warning: Node {node_id} missing 'angles' data.")
         elif isinstance(node_data, (np.ndarray, list)): # Fallback for old format if needed
              print(f"Warning: Node {node_id} using fallback angle format.")
              end_effectors[node_id] = calculate_end_effector(np.array(node_data), base_pos)
+             for nid, pos in end_effectors.items():
+                    x, y = pos
+                    # CW90:  (x, y) → (y,  orig_width – x)
+                    end_effectors[nid] = np.array([ y, orig_width - x ])
 
 
     # Define Colors and Styles

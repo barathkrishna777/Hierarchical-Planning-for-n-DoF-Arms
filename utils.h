@@ -26,6 +26,7 @@
 const int dx[numDirections] = { 1, 0, -1, 0, 1, -1, -1, 1 };
 const int dy[numDirections] = { 0, 1, 0, -1, 1, -1, 1, -1 };
 const double move_cost[numDirections] = { 10, 10, 10, 10, sqrt(2)*10, sqrt(2)*10, sqrt(2)*10, sqrt(2)*10 };
+const std::array<double,6> JOINT_WEIGHTS = {10.0, 8.0, 6.0, 4.0, 2.0, 1.0};
 
 #if !defined(MAX)
 #define	MAX(A, B)	((A) > (B) ? (A) : (B))
@@ -295,10 +296,10 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
 			return 0;
 	}
 	//check the end effector position
-	int end_effector_idx = GETMAPINDEX((int)x1, (int)y1, x_size, y_size);
-	if (low_cost_map[end_effector_idx] == 1.0) {
-		return 0;
-	}
+	// int end_effector_idx = GETMAPINDEX((int)x1, (int)y1, x_size, y_size);
+	// if (low_cost_map[end_effector_idx] == 1.0) {
+	// 	return 0;
+	// }
 
 	return 1;
 }
@@ -346,7 +347,7 @@ bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, doub
 bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, 
 				   double* map, double* low_cost_map) {
 	double dist = distance(n1, n2);
-	int numofsamples = std::max(1, (int)(dist / (PI / 100)));
+	int numofsamples = std::max(1, (int)(dist / (PI / 1000)));
 
 	std::vector<double> config(numofDOFs);
 	for (int i = 0; i < numofsamples; i++) {

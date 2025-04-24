@@ -12,8 +12,7 @@ class RRT_Planner {
 public:
     int x_size, y_size;
     int numofDOFs;
-    double *map;
-    double *low_cost_map;
+    double *map, *low_cost_map;
     double eps;
     std::mt19937 generator;
     int goal_id = -1;
@@ -30,13 +29,15 @@ public:
         generator = std::mt19937(rd());
     }
 
-    node new_node(int numofDOFs, double* armgoal_anglesV_rad, double goal_bias_prob = 0.01) {
+    node new_node(int numofDOFs, double* armgoal_anglesV_rad, double goal_bias_prob = 0.01, double low_cost_prob = 0.8) {
         std::uniform_real_distribution<double> distribution(0.0, 2 * PI);
         std::uniform_real_distribution<double> bias_distribution(0.0, 1.0);
     
         node n;
         int max_attempts = 1000;
         int attempts = 0;
+
+        double *map_used;
     
         while (attempts < max_attempts) {
             attempts++;
@@ -48,10 +49,14 @@ public:
                 for (int i = 0; i < numofDOFs; ++i) {
                     n.angles.push_back(distribution(generator));
                 }
-            }
-            
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
-                return n;
+                if(bias_distribution(generator) < low_cost_prob) {
+                    map_used = low_cost_map;
+                } else {
+                    map_used = map;
+                }
+                if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map_used, x_size, y_size)) {
+                    return n;
+                }
             }
         }
         throw std::runtime_error("Failed to find a valid random node.");
@@ -121,7 +126,7 @@ public:
         double dist = distance(tree[id], n);
         dist = std::min(dist, eps);
     
-        int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 100)));
     
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;

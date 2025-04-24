@@ -23,6 +23,8 @@ private:
     int goal_coarse_x, goal_fine_x;
     int goal_coarse_y, goal_fine_y;
 
+    std::vector<double> forward_costs, backward_costs;
+
     struct DijkstraNode {
         int idx = -1;
         double g = std::numeric_limits<double>::infinity();
@@ -160,72 +162,95 @@ private:
         return final_g_costs;
     }
 
-    void save_low_cost_map(const std::string& filename,
-                            const std::vector<double>& forward_costs,
-                            const std::vector<double>& backward_costs,
-                            int idx_goal_coarse) {
-        
+    void save_low_cost_map(
+        const std::string&            filename,
+        const std::vector<double>&    forward_costs,
+        const std::vector<double>&    backward_costs,
+        int                           idx_goal_coarse)
+    {
         std::ofstream low_cost_map_file(filename);
         if (!low_cost_map_file.is_open()) {
             std::cerr << "Error opening file for writing: " << filename << std::endl;
             return;
         }
-
+    
+        // 1) Compute the threshold from the coarse solution
         double optimal_cost_L = std::numeric_limits<double>::infinity();
-        if (idx_goal_coarse >= 0 && static_cast<size_t>(idx_goal_coarse) < forward_costs.size()) {
+        if (idx_goal_coarse >= 0 && 
+            idx_goal_coarse < (int)forward_costs.size()) {
             optimal_cost_L = forward_costs[idx_goal_coarse];
         }
-
-        double eps = 2;
+        const double eps = 1.25;
         double cost_threshold = optimal_cost_L * (1.0 + eps);
-
-        int idx_start_fine = get_fine_idx(start_fine_x, start_fine_y);
-        int idx_goal_fine = get_fine_idx(goal_fine_x, goal_fine_y);
-
-        low_cost_map_file << "height " << y_size << std::endl;
-        low_cost_map_file << "width " << x_size << std::endl;
-
-        int map_size = x_size * y_size;
-        for (int i = 0; i < map_size; ++i) {
-            int output_value = 1;
     
-            if (map[i] == 1.0) {
-                output_value = 1;
+        // 2) Print start & goal costs via a fine→coarse map
+        {
+            int sx = start_fine_x / planning_coarse_factor;
+            int sy = start_fine_y / planning_coarse_factor;
+            int idx_sc = get_coarse_idx(sx, sy);
+            if (idx_sc >= 0 && idx_sc < (int)forward_costs.size()) {
+                std::cout << "Start cost: "
+                          << (forward_costs[idx_sc] + backward_costs[idx_sc])
+                          << std::endl;
             } else {
-                int coarse_idx = get_coarse_idx_from_fine(i);
+                std::cerr << "Error: start coarse index out of range\n";
+            }
+        }
+        {
+            int gx = goal_fine_x / planning_coarse_factor;
+            int gy = goal_fine_y / planning_coarse_factor;
+            int idx_gc = get_coarse_idx(gx, gy);
+            if (idx_gc >= 0 && idx_gc < (int)forward_costs.size()) {
+                std::cout << "Goal cost: "
+                          << (forward_costs[idx_gc] + backward_costs[idx_gc])
+                          << std::endl;
+            } else {
+                std::cerr << "Error: goal coarse index out of range\n";
+            }
+        }
     
-                bool is_low_cost = false;
-                if (coarse_idx != -1) {
-                    double g_start = forward_costs[coarse_idx];
-                    double g_goal = backward_costs[coarse_idx];
+        // 3) Write the map header
+        low_cost_map_file << "height " << y_size << "\n";
+        low_cost_map_file << "width "  << x_size << "\n";
     
+        // 4) For each fine cell, check whether its parent coarse cell is within threshold
+        const int map_size = x_size * y_size;
+        for (int i = 0; i < map_size; ++i) {
+            // recover fine coords
+            int fx = i % x_size;
+            int fy = i / x_size;
+    
+            bool is_low_cost = false;
+            // free cells only
+            if (map[i] != 1.0) {
+                // map to coarse
+                int cx = fx / planning_coarse_factor;
+                int cy = fy / planning_coarse_factor;
+                int cidx = get_coarse_idx(cx, cy);
+                if (cidx >= 0 && cidx < (int)forward_costs.size()) {
+                    double g_start = forward_costs[cidx];
+                    double g_goal  = backward_costs[cidx];
                     if (g_start != std::numeric_limits<double>::infinity() &&
-                        g_goal != std::numeric_limits<double>::infinity() &&
+                        g_goal  != std::numeric_limits<double>::infinity() &&
                         (g_start + g_goal <= cost_threshold)) {
                         is_low_cost = true;
                     }
                 }
-    
-                output_value = is_low_cost ? 0 : 1;
-    
-                if (i == idx_start_fine || i == idx_goal_fine) {
-                    if (map[i] != 1.0) {
-                        output_value = 0;
-                    }
-                }
-            }
-    
-            low_cost_map_file << output_value;
-
-            if ((i + 1) % x_size != 0) {
-                low_cost_map_file << " ";
             }
 
-            if ((i + 1) % x_size == 0) {
-                low_cost_map_file << std::endl;
+            // always include the exact fine start/goal
+            if (i == get_fine_idx(start_fine_x, start_fine_y) || i == get_fine_idx(goal_fine_x, goal_fine_y)) {
+                is_low_cost = true;
             }
+    
+            // write 0 for low‐cost, 1 otherwise
+            low_cost_map_file << (is_low_cost ? 0 : 1);
+    
+            // spacing and newlines
+            if ((i + 1) % x_size != 0) low_cost_map_file << " ";
+            else                        low_cost_map_file << "\n";
         }
-
+    
         low_cost_map_file.close();
         std::cout << "Low-cost map saved successfully." << std::endl;
     }
@@ -276,6 +301,9 @@ public:
         this->start_coarse_y = std::max(0, std::min(start_fine_y / planning_coarse_factor, this->coarse_y_size - 1));
         this->goal_coarse_x = std::max(0, std::min(goal_fine_x / planning_coarse_factor, this->coarse_x_size - 1));
         this->goal_coarse_y = std::max(0, std::min(goal_fine_y / planning_coarse_factor, this->coarse_y_size - 1));
+
+        this->forward_costs.resize(coarse_map_size, std::numeric_limits<double>::infinity());
+        this->backward_costs.resize(coarse_map_size, std::numeric_limits<double>::infinity());
     }
 
     std::tuple<double*, int, int> generate_and_load_guidance_map(const std::string& output_filename) {
@@ -283,8 +311,8 @@ public:
         int idx_start_coarse = get_coarse_idx(start_coarse_x, start_coarse_y);
         int idx_goal_coarse = get_coarse_idx(goal_coarse_x, goal_coarse_y);
 
-        std::vector<double> forward_costs = dijkstra_search_coarse(idx_start_coarse, idx_goal_coarse);
-        std::vector<double> backward_costs = dijkstra_search_coarse(idx_goal_coarse, idx_start_coarse);
+        forward_costs = dijkstra_search_coarse(idx_start_coarse, idx_goal_coarse);
+        backward_costs = dijkstra_search_coarse(idx_goal_coarse, idx_start_coarse);
         save_low_cost_map(output_filename, forward_costs, backward_costs, idx_goal_coarse);
         auto loaded_map_data = loadMap(output_filename);
 

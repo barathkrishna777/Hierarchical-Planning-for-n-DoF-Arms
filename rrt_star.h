@@ -50,7 +50,7 @@ public:
                 }
             }
             
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, low_cost_map, x_size, y_size)) {
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
                 return n;
             }
         }
@@ -123,7 +123,7 @@ public:
     node interpolate_eps(std::vector<node>& tree, int id, node n) {
         double dist = distance(tree[id], n);
     
-        int numofsamples = std::max(1, (int)(dist / (PI / 20)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 100)));
     
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
@@ -156,10 +156,13 @@ public:
 
     void rewire(std::vector<node>& tree) {
         int n = tree.size();
-        double delta = std::pow(PI, numofDOFs/2.0) / std::tgamma(1 + numofDOFs/2.0);
-        double gamma = 2 * std::pow(1 + 1.0/numofDOFs, 1.0/numofDOFs) * std::pow(1.0/delta, 1.0/numofDOFs);
-        
-        double r = std::pow((gamma/delta) * std::log(fabs(n))/n, 1.0/numofDOFs);
+        int d = numofDOFs;
+        double free_space_vol = pow(2*M_PI, d);
+        double unit_ball_vol = pow(M_PI, d/2.0) / tgamma(1 + d/2.0);
+        double gamma_star   = 2.0 * pow(1 + 1.0/d, 1.0/d)
+                            * pow(free_space_vol/unit_ball_vol, 1.0/d);
+        double r = std::min(eps,
+                    gamma_star * pow(log(n)/n, 1.0/d));
         r = std::min(r, eps);
 
         int id = tree.back().id;
@@ -172,6 +175,7 @@ public:
                 if(c_new < tree[id].g) {
                     tree[id].g = c_new;
                     tree[id].parent = neighbor.first;
+                    propagate_cost(tree, id);
                 }
             }
         }
@@ -184,6 +188,21 @@ public:
                 if (c_new < tree[neighbor.first].g) {
                     tree[neighbor.first].g = c_new;
                     tree[neighbor.first].parent = id;
+                    propagate_cost(tree, neighbor.first);
+                }
+            }
+        }
+    }
+
+    void propagate_cost(std::vector<node>& tree, int id) {
+        for (auto& neighbor : tree[id].neighbors) {
+            int nid = neighbor.first;
+            if (tree[nid].parent == id) {
+                double dist = neighbor.second;
+                double new_cost = tree[id].g + dist;
+                if (new_cost < tree[nid].g) {
+                    tree[nid].g = new_cost;
+                    propagate_cost(tree, nid); // recurse
                 }
             }
         }
@@ -272,30 +291,42 @@ public:
         return shortcut_path;
     }
 
-    void save_to_file(const std::vector<node>& tree, const std::vector<int>& path) {
-        std::ofstream m_log_fstream;
-        m_log_fstream.open("rrt_star.txt", std::ios::trunc); // Creates new or replaces existing file
-        if (!m_log_fstream.is_open()) {
-            throw std::runtime_error("Cannot open file");
+    void save_to_file(
+        const std::vector<node>&   tree,
+        const std::vector<int>&    path,
+        const std::string&         filename = "rrt_star.txt")
+    {
+        std::ofstream out(filename, std::ios::trunc);
+        if (!out.is_open()) {
+            throw std::runtime_error("Cannot open file: " + filename);
         }
-        // loop through the tree and write out all the joint angles and neighbors
-        for (const auto& node : tree) {
-            m_log_fstream << "Node ID: " << node.id << ", Angles: ";
-            for (int k = 0; k < numofDOFs; ++k) {
-                m_log_fstream << node.angles[k] << ",";
+    
+        // 1) Dump each node: ID, angles, neighbor IDs
+        for (const auto& nd : tree) {
+            out << "Node ID: " << nd.id << ", Angles: ";
+            // angles
+            for (size_t k = 0; k < nd.angles.size(); ++k) {
+                out << nd.angles[k];
+                if (k + 1 < nd.angles.size()) out << ", ";
             }
-            
-            m_log_fstream << "Neighbors: ";
-            for (const auto& neighbor : node.neighbors) {
-                m_log_fstream << neighbor.first << " ";
+            // neighbors
+            out << ", Neighbors: ";
+            for (size_t i = 0; i < nd.neighbors.size(); ++i) {
+                out << nd.neighbors[i].first;
+                if (i + 1 < nd.neighbors.size()) out << ' ';
             }
-            m_log_fstream << std::endl;
+            out << "\n";
         }
-
-        m_log_fstream << "path:" << std::endl;
-        for (const auto& node_id : path)
-            m_log_fstream << node_id << ", ";
-
-        m_log_fstream.close();
+    
+        // 2) Dump the path (as comma-separated IDs)
+        out << "path:\n";
+        for (size_t i = 0; i < path.size(); ++i) {
+            out << path[i];
+            if (i + 1 < path.size()) out << ", ";
+        }
+        out << "\n";
+    
+        // 3) Close (happens automatically on destructor, but explicit is fine)
+        out.close();
     }
 };
