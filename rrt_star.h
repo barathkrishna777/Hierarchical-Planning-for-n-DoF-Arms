@@ -9,7 +9,8 @@
 #include "utils.h"
 #include "dijkstra.hpp"
 
-class RRT_Star_Planner {
+class RRT_Star_Planner
+{
 public:
     int x_size, y_size;
     int numofDOFs;
@@ -18,7 +19,8 @@ public:
     std::mt19937 generator;
     int goal_id = -1;
 
-    RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double *low_cost_map, double eps, double* armgoal_anglesV_rad) {
+    RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double *low_cost_map, double eps, double *armgoal_anglesV_rad)
+    {
         this->x_size = x_size;
         this->y_size = y_size;
         this->numofDOFs = numofDOFs;
@@ -30,71 +32,83 @@ public:
         generator = std::mt19937(rd());
     }
 
-    node new_node(int numofDOFs, double* armgoal_anglesV_rad, double goal_bias_prob = 0.01) {
+    node new_node(int numofDOFs, double *armgoal_anglesV_rad, double goal_bias_prob = 0.01)
+    {
         std::uniform_real_distribution<double> distribution(0.0, 2 * PI);
         std::uniform_real_distribution<double> bias_distribution(0.0, 1.0);
-    
+
         node n;
         int max_attempts = 1000;
         int attempts = 0;
-    
-        while (attempts < max_attempts) {
+
+        while (attempts < max_attempts)
+        {
             attempts++;
-            if (bias_distribution(generator) < goal_bias_prob) {
+            if (bias_distribution(generator) < goal_bias_prob)
+            {
                 n.angles.assign(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
-            } 
-            else {
+            }
+            else
+            {
                 n.angles.clear();
-                for (int i = 0; i < numofDOFs; ++i) {
+                for (int i = 0; i < numofDOFs; ++i)
+                {
                     n.angles.push_back(distribution(generator));
                 }
             }
-            
-            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size)) {
+
+            if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map, x_size, y_size))
+            {
                 return n;
             }
         }
         throw std::runtime_error("Failed to find a valid random node.");
     }
 
-    void build_tree(std::vector<node>& tree, double* armstart_anglesV_rad, double* armgoal_anglesV_rad, const int& max_nodes) {
+    void build_tree(std::vector<node> &tree, double *armstart_anglesV_rad, double *armgoal_anglesV_rad, const int &max_nodes)
+    {
         int n = 0;
         tree.clear();
-    
+
         node q_init;
         q_init.id = 0;
         q_init.angles.assign(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
         q_init.g = 0;
         tree.push_back(q_init);
-    
+
         double min_dist_to_goal = std::numeric_limits<double>::max();
         node q_goal;
         q_goal.angles.assign(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
-    
-        while (n < max_nodes) {
+
+        while (n < max_nodes)
+        {
             node q_rand = new_node(numofDOFs, armgoal_anglesV_rad);
             int status = extend(tree, q_rand, armgoal_anglesV_rad);
-    
-            if (status == 0)  // Trapped
+
+            if (status == 0) // Trapped
                 continue;
-            else {  // Advanced or Reached
+            else
+            { // Advanced or Reached
                 ++n;
             }
-            if (distance(tree.back(), q_goal) < min_dist_to_goal) {
+            if (distance(tree.back(), q_goal) < min_dist_to_goal)
+            {
                 min_dist_to_goal = distance(tree.back(), q_goal);
                 goal_id = tree.back().id;
             }
         }
     }
 
-    int extend(std::vector<node>& tree, node& q_rand, double* armgoal_anglesV_rad) {
+    int extend(std::vector<node> &tree, node &q_rand, double *armgoal_anglesV_rad)
+    {
         int nearest_node_id = nearest_neighbor(tree, q_rand);
         node q_extended = interpolate_eps(tree, nearest_node_id, q_rand);
-    
-        if (q_extended.id == -1) {  
+
+        if (q_extended.id == -1)
+        {
             return 0;
         }
-    
+
         double reached_distance = distance(q_extended, q_rand);
 
         double dist = distance(tree[nearest_node_id], q_extended);
@@ -106,86 +120,100 @@ public:
         tree[q_extended.id].parent = nearest_node_id;
 
         double c_new = tree[nearest_node_id].g + dist;
-        if (c_new < tree[q_extended.id].g) {
+        if (c_new < tree[q_extended.id].g)
+        {
             tree[q_extended.id].g = c_new;
         }
 
         rewire(tree);
 
         // Check if we fully reached the target
-        if (reached_distance < 1e-3) {
+        if (reached_distance < 1e-3)
+        {
             return 2; // Reached
         }
-    
+
         return 1; // Advanced
     }
 
-    node interpolate_eps(std::vector<node>& tree, int id, node n) {
+    node interpolate_eps(std::vector<node> &tree, int id, node n)
+    {
         double dist = distance(tree[id], n);
-    
+
         int numofsamples = std::max(2, (int)(dist / (PI / 100)));
-    
+
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
-    
-        for (int i = 0; i < numofsamples; i++) {
-            for (int j = 0; j < numofDOFs; j++) {
+
+        for (int i = 0; i < numofsamples; i++)
+        {
+            for (int j = 0; j < numofDOFs; j++)
+            {
                 config[j] = tree[id].angles[j] + ((double)(i) / (numofsamples - 1)) * (n.angles[j] - tree[id].angles[j]);
             }
-    
-            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size)) {
-                if (i == 0) {
+
+            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size))
+            {
+                if (i == 0)
+                {
                     node invalid_node;
                     invalid_node.id = -1;
                     return invalid_node;
-                } 
-                else {
+                }
+                else
+                {
                     config = prev_config;
                     break;
                 }
             }
             prev_config = config;
         }
-        
+
         node interpolated_node;
         interpolated_node.id = tree.size();
         interpolated_node.angles = config;
-    
+
         return interpolated_node;
     }
 
-    void rewire(std::vector<node>& tree) {
+    void rewire(std::vector<node> &tree)
+    {
         int n = tree.size();
         int d = numofDOFs;
-        double free_space_vol = pow(2*M_PI, d);
-        double unit_ball_vol = pow(M_PI, d/2.0) / tgamma(1 + d/2.0);
-        double gamma_star   = 2.0 * pow(1 + 1.0/d, 1.0/d)
-                            * pow(free_space_vol/unit_ball_vol, 1.0/d);
+        double free_space_vol = pow(2 * M_PI, d);
+        double unit_ball_vol = pow(M_PI, d / 2.0) / tgamma(1 + d / 2.0);
+        double gamma_star = 2.0 * pow(1 + 1.0 / d, 1.0 / d) * pow(free_space_vol / unit_ball_vol, 1.0 / d);
         double r = std::min(eps,
-                    gamma_star * pow(log(n)/n, 1.0/d));
+                            gamma_star * pow(log(n) / n, 1.0 / d));
         r = std::min(r, eps);
 
         int id = tree.back().id;
 
         std::vector<std::pair<int, double>> neighbors = find_neighbors(tree, id, r);
 
-        for (auto neighbor : neighbors) {
-            if(obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map, low_cost_map)) {
+        for (auto neighbor : neighbors)
+        {
+            if (obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map, low_cost_map))
+            {
                 double c_new = tree[neighbor.first].g + neighbor.second;
-                if(c_new < tree[id].g) {
+                if (c_new < tree[id].g)
+                {
                     tree[id].g = c_new;
                     tree[id].parent = neighbor.first;
                     propagate_cost(tree, id);
                 }
             }
         }
-        for (auto neighbor : neighbors) {
-            if(neighbor.first != tree[id].parent && 
-                    obstacle_free(tree[id], tree[neighbor.first], numofDOFs, 
-                    x_size, y_size, map, low_cost_map)) {
+        for (auto neighbor : neighbors)
+        {
+            if (neighbor.first != tree[id].parent &&
+                obstacle_free(tree[id], tree[neighbor.first], numofDOFs,
+                              x_size, y_size, map, low_cost_map))
+            {
 
                 double c_new = tree[id].g + neighbor.second;
-                if (c_new < tree[neighbor.first].g) {
+                if (c_new < tree[neighbor.first].g)
+                {
                     tree[neighbor.first].g = c_new;
                     tree[neighbor.first].parent = id;
                     propagate_cost(tree, neighbor.first);
@@ -194,13 +222,17 @@ public:
         }
     }
 
-    void propagate_cost(std::vector<node>& tree, int id) {
-        for (auto& neighbor : tree[id].neighbors) {
+    void propagate_cost(std::vector<node> &tree, int id)
+    {
+        for (auto &neighbor : tree[id].neighbors)
+        {
             int nid = neighbor.first;
-            if (tree[nid].parent == id) {
+            if (tree[nid].parent == id)
+            {
                 double dist = neighbor.second;
                 double new_cost = tree[id].g + dist;
-                if (new_cost < tree[nid].g) {
+                if (new_cost < tree[nid].g)
+                {
                     tree[nid].g = new_cost;
                     propagate_cost(tree, nid); // recurse
                 }
@@ -208,37 +240,46 @@ public:
         }
     }
 
-    std::vector<std::pair<int, double>> find_neighbors(std::vector<node>& tree, int id, double r) {
+    std::vector<std::pair<int, double>> find_neighbors(std::vector<node> &tree, int id, double r)
+    {
         std::vector<std::pair<int, double>> nearest_neighbors;
 
-        if (tree.size() <= 1) {
+        if (tree.size() <= 1)
+        {
             return nearest_neighbors;
         }
         nearest_neighbors.reserve(tree.size() - 1);
-    
-        for (size_t i = 0; i < tree.size(); ++i) {
-            if (tree[i].id != id) {
+
+        for (size_t i = 0; i < tree.size(); ++i)
+        {
+            if (tree[i].id != id)
+            {
                 double dist = distance(tree[id], tree[i]);
-                if (dist <= r) {
+                if (dist <= r)
+                {
                     nearest_neighbors.emplace_back(tree[i].id, dist);
                 }
             }
         }
-    
-        // Sort distances before adjusting k
-        std::sort(nearest_neighbors.begin(), nearest_neighbors.end(), 
-                  [](const auto& lhs, const auto& rhs) { return lhs.second < rhs.second; });
-    
-        return nearest_neighbors;
-    }    
 
-    int nearest_neighbor(std::vector<node>& tree, node& q_rand) {
+        // Sort distances before adjusting k
+        std::sort(nearest_neighbors.begin(), nearest_neighbors.end(),
+                  [](const auto &lhs, const auto &rhs)
+                  { return lhs.second < rhs.second; });
+
+        return nearest_neighbors;
+    }
+
+    int nearest_neighbor(std::vector<node> &tree, node &q_rand)
+    {
         double min_dist = std::numeric_limits<double>::infinity();
         int nearest_node_id = -1;
 
-        for (int i = 0; i < tree.size(); ++i) {
+        for (int i = 0; i < tree.size(); ++i)
+        {
             double dist = distance(tree[i], q_rand);
-            if (dist < min_dist) {
+            if (dist < min_dist)
+            {
                 min_dist = dist;
                 nearest_node_id = i;
             }
@@ -246,18 +287,21 @@ public:
         return nearest_node_id;
     }
 
-    std::vector<int> reconstruct_path(std::vector<node>& tree) {
+    std::vector<int> reconstruct_path(std::vector<node> &tree)
+    {
         node n;
         n.angles.assign(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
         // int q_goal_ID = nearest_neighbor(tree, n);
-    
-        if (tree[goal_id].g == std::numeric_limits<double>::infinity()) {
+
+        if (tree[goal_id].g == std::numeric_limits<double>::infinity())
+        {
             std::cout << "No path found to the goal node." << std::endl;
             return {};
         }
-    
+
         std::vector<int> path;
-        for (int at = goal_id; at >= 0; at = tree[at].parent) {
+        for (int at = goal_id; at >= 0; at = tree[at].parent)
+        {
             path.push_back(at);
         }
         std::reverse(path.begin(), path.end());
@@ -266,22 +310,25 @@ public:
         n.id = tree.size();
         tree.push_back(n);
         path.push_back(n.id);
-            
+
         // Perform shortcutting to reduce unnecessary waypoints
         std::vector<int> shortcut_path = shortcutting(tree, path);
 
         return shortcut_path;
     }
 
-    std::vector<int> shortcutting(std::vector<node>& tree, std::vector<int>& path) {
+    std::vector<int> shortcutting(std::vector<node> &tree, std::vector<int> &path)
+    {
         // Perform shortcutting to reduce unnecessary waypoints
         std::vector<int> shortcut_path;
         int current = 0;
         shortcut_path.push_back(path[current]);
 
-        while (current < path.size() - 1) {
+        while (current < path.size() - 1)
+        {
             int next = current + 1;
-            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map)) {
+            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map))
+            {
                 next++;
             }
             shortcut_path.push_back(path[next]);
@@ -292,40 +339,48 @@ public:
     }
 
     void save_to_file(
-        const std::vector<node>&   tree,
-        const std::vector<int>&    path,
-        const std::string&         filename = "rrt_star.txt")
+        const std::vector<node> &tree,
+        const std::vector<int> &path,
+        const std::string &filename = "rrt_star.txt")
     {
         std::ofstream out(filename, std::ios::trunc);
-        if (!out.is_open()) {
+        if (!out.is_open())
+        {
             throw std::runtime_error("Cannot open file: " + filename);
         }
-    
+
         // 1) Dump each node: ID, angles, neighbor IDs
-        for (const auto& nd : tree) {
+        for (const auto &nd : tree)
+        {
             out << "Node ID: " << nd.id << ", Angles: ";
             // angles
-            for (size_t k = 0; k < nd.angles.size(); ++k) {
+            for (size_t k = 0; k < nd.angles.size(); ++k)
+            {
                 out << nd.angles[k];
-                if (k + 1 < nd.angles.size()) out << ", ";
+                if (k + 1 < nd.angles.size())
+                    out << ", ";
             }
             // neighbors
             out << ", Neighbors: ";
-            for (size_t i = 0; i < nd.neighbors.size(); ++i) {
+            for (size_t i = 0; i < nd.neighbors.size(); ++i)
+            {
                 out << nd.neighbors[i].first;
-                if (i + 1 < nd.neighbors.size()) out << ' ';
+                if (i + 1 < nd.neighbors.size())
+                    out << ' ';
             }
             out << "\n";
         }
-    
+
         // 2) Dump the path (as comma-separated IDs)
         out << "path:\n";
-        for (size_t i = 0; i < path.size(); ++i) {
+        for (size_t i = 0; i < path.size(); ++i)
+        {
             out << path[i];
-            if (i + 1 < path.size()) out << ", ";
+            if (i + 1 < path.size())
+                out << ", ";
         }
         out << "\n";
-    
+
         // 3) Close (happens automatically on destructor, but explicit is fine)
         out.close();
     }

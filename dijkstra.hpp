@@ -10,18 +10,16 @@ private:
     double *armstart_anglesV_rad;
     double *armgoal_anglesV_rad;
 
-    int x_size;
-    int y_size;
     int planning_coarse_factor;
     int numofDOFs;
-    int coarse_x_size;
-    int coarse_y_size;
+    int x_fine_size;
+    int y_fine_size;
+    int x_coarse_size;
+    int y_coarse_size;
     int coarse_map_size;
 
-    int start_coarse_x, start_fine_x;
-    int start_coarse_y, start_fine_y;
-    int goal_coarse_x, goal_fine_x;
-    int goal_coarse_y, goal_fine_y;
+    int start_coarse_x, start_fine_x, start_coarse_y, start_fine_y;
+    int goal_coarse_x, goal_fine_x, goal_coarse_y, goal_fine_y;
 
     std::vector<double> forward_costs, backward_costs;
 
@@ -46,39 +44,33 @@ private:
     };
 
     inline int get_coarse_x(int coarse_index) const {
-        if (coarse_x_size <= 0) return -1;
-        return coarse_index % coarse_x_size;
+        if (x_coarse_size <= 0) return -1;
+        return coarse_index % x_coarse_size;
     }
     inline int get_coarse_y(int coarse_index) const {
-        if (coarse_x_size <= 0) return -1;
-        return coarse_index / coarse_x_size;
+        if (x_coarse_size <= 0) return -1;
+        return coarse_index / x_coarse_size;
     }
 
-    inline int get_coarse_idx(int x, int y) const {
-        if (coarse_x_size <= 0 || coarse_y_size <= 0) return -1;
-        if (x < 0 || x >= coarse_x_size || y < 0 || y >= coarse_y_size) return -1;
-        return GETMAPINDEX(x, y, coarse_x_size, coarse_y_size);
-    }
-
-    inline int get_fine_idx(int x, int y) const {
-            if (x_size <= 0 || y_size <= 0) return -1;
-            if (x < 0 || x >= x_size || y < 0 || y >= y_size) return -1;
-            return GETMAPINDEX(x, y, x_size, y_size);
+    inline int get_idx(int x, int y, int x_size, int y_size) const {
+        if (x_size <= 0 || y_size <= 0) return -1;
+        if (x < 0 || x >= x_size || y < 0 || y >= y_size) return -1;
+        return GETMAPINDEX(x, y, x_size, y_size);
     }
 
     inline int get_coarse_idx_from_fine(int fine_idx) const {
-        if (x_size <= 0 || coarse_x_size <= 0 || coarse_y_size <= 0 || planning_coarse_factor <= 0) {
+        if (x_fine_size <= 0 || x_coarse_size <= 0 || y_coarse_size <= 0 || planning_coarse_factor <= 0) {
             return -1;
         }
-        if (fine_idx < 0 || fine_idx >= (x_size * y_size)) {
+        if (fine_idx < 0 || fine_idx >= (x_fine_size * y_fine_size)) {
             return -1;
         }
-        int fine_x = fine_idx % x_size;
-        int fine_y = fine_idx / x_size;
+        int fine_x = fine_idx % x_fine_size;
+        int fine_y = fine_idx / x_fine_size;
         int coarse_x = fine_x / planning_coarse_factor;
         int coarse_y = fine_y / planning_coarse_factor;
 
-        return get_coarse_idx(coarse_x, coarse_y);
+        return get_idx(coarse_x, coarse_y, x_coarse_size, y_coarse_size);
     }
 
     inline std::vector<int> get_neighbor_ids(int idx) const {
@@ -91,7 +83,7 @@ private:
         for (int i = 0; i < numDirections; ++i) {
             int next_x = current_x + dx[i];
             int next_y = current_y + dy[i];
-            int neighbor_idx = get_coarse_idx(next_x, next_y);
+            int neighbor_idx = get_idx(next_x, next_y, x_coarse_size, y_coarse_size);
             if (neighbor_idx != -1) {
                 neighbor_ids.push_back(neighbor_idx);
             }
@@ -135,7 +127,7 @@ private:
 
                 int next_coarse_x = get_coarse_x(idx_next_coarse);
                 int next_coarse_y = get_coarse_y(idx_next_coarse);
-                if (next_coarse_x == -1 || next_coarse_y == -1 || isCoarseCellOccupied(next_coarse_x, next_coarse_y, planning_coarse_factor, map, x_size, y_size)) {
+                if (next_coarse_x == -1 || next_coarse_y == -1 || isCoarseCellOccupied(next_coarse_x, next_coarse_y, planning_coarse_factor, map, x_fine_size, y_fine_size)) {
                     continue;
                 }
 
@@ -174,59 +166,28 @@ private:
             return;
         }
     
-        // 1) Compute the threshold from the coarse solution
         double optimal_cost_L = std::numeric_limits<double>::infinity();
         if (idx_goal_coarse >= 0 && 
             idx_goal_coarse < (int)forward_costs.size()) {
             optimal_cost_L = forward_costs[idx_goal_coarse];
         }
-        const double eps = 1.25;
+        const double eps = 0.1;
         double cost_threshold = optimal_cost_L * (1.0 + eps);
+       
+        low_cost_map_file << "height " << y_fine_size << "\n";
+        low_cost_map_file << "width "  << x_fine_size << "\n";
     
-        // 2) Print start & goal costs via a fine→coarse map
-        {
-            int sx = start_fine_x / planning_coarse_factor;
-            int sy = start_fine_y / planning_coarse_factor;
-            int idx_sc = get_coarse_idx(sx, sy);
-            if (idx_sc >= 0 && idx_sc < (int)forward_costs.size()) {
-                std::cout << "Start cost: "
-                          << (forward_costs[idx_sc] + backward_costs[idx_sc])
-                          << std::endl;
-            } else {
-                std::cerr << "Error: start coarse index out of range\n";
-            }
-        }
-        {
-            int gx = goal_fine_x / planning_coarse_factor;
-            int gy = goal_fine_y / planning_coarse_factor;
-            int idx_gc = get_coarse_idx(gx, gy);
-            if (idx_gc >= 0 && idx_gc < (int)forward_costs.size()) {
-                std::cout << "Goal cost: "
-                          << (forward_costs[idx_gc] + backward_costs[idx_gc])
-                          << std::endl;
-            } else {
-                std::cerr << "Error: goal coarse index out of range\n";
-            }
-        }
-    
-        // 3) Write the map header
-        low_cost_map_file << "height " << y_size << "\n";
-        low_cost_map_file << "width "  << x_size << "\n";
-    
-        // 4) For each fine cell, check whether its parent coarse cell is within threshold
-        const int map_size = x_size * y_size;
-        for (int i = 0; i < map_size; ++i) {
-            // recover fine coords
-            int fx = i % x_size;
-            int fy = i / x_size;
+        const int map_fine_size = x_fine_size * y_fine_size;
+        for (int i = 0; i < map_fine_size; ++i) {
+            int fx = i % x_fine_size;
+            int fy = i / x_fine_size;
     
             bool is_low_cost = false;
-            // free cells only
             if (map[i] != 1.0) {
-                // map to coarse
                 int cx = fx / planning_coarse_factor;
                 int cy = fy / planning_coarse_factor;
-                int cidx = get_coarse_idx(cx, cy);
+                int cidx = get_idx(cx, cy, x_coarse_size, y_coarse_size);
+
                 if (cidx >= 0 && cidx < (int)forward_costs.size()) {
                     double g_start = forward_costs[cidx];
                     double g_goal  = backward_costs[cidx];
@@ -238,16 +199,14 @@ private:
                 }
             }
 
-            // always include the exact fine start/goal
-            if (i == get_fine_idx(start_fine_x, start_fine_y) || i == get_fine_idx(goal_fine_x, goal_fine_y)) {
+            if (i == get_idx(start_fine_x, start_fine_y, x_fine_size, y_fine_size) || 
+                i == get_idx(goal_fine_x, goal_fine_y, x_fine_size, y_fine_size)) {
                 is_low_cost = true;
             }
     
-            // write 0 for low‐cost, 1 otherwise
             low_cost_map_file << (is_low_cost ? 0 : 1);
     
-            // spacing and newlines
-            if ((i + 1) % x_size != 0) low_cost_map_file << " ";
+            if ((i + 1) % x_fine_size != 0) low_cost_map_file << " ";
             else                        low_cost_map_file << "\n";
         }
     
@@ -259,7 +218,7 @@ public:
     low_cost(double* map_ptr, int fine_x, int fine_y,
              double* start_angles, double* goal_angles,
              int coarse_factor, int dofs)
-            : map(map_ptr), x_size(fine_x), y_size(fine_y),
+            : map(map_ptr), x_fine_size(fine_x), y_fine_size(fine_y),
              armstart_anglesV_rad(start_angles), armgoal_anglesV_rad(goal_angles),
              planning_coarse_factor(coarse_factor), numofDOFs(dofs) {
 
@@ -267,15 +226,15 @@ public:
                 throw std::invalid_argument("Invalid arguments provided to low_cost constructor.");
         }
 
-        this->coarse_x_size = static_cast<int>(std::ceil(static_cast<double>(x_size) / planning_coarse_factor));
-        this->coarse_y_size = static_cast<int>(std::ceil(static_cast<double>(y_size) / planning_coarse_factor));
-        this->coarse_map_size = coarse_x_size * coarse_y_size;
+        this->x_coarse_size = static_cast<int>(std::ceil(static_cast<double>(x_fine_size) / planning_coarse_factor));
+        this->y_coarse_size = static_cast<int>(std::ceil(static_cast<double>(y_fine_size) / planning_coarse_factor));
+        this->coarse_map_size = x_coarse_size * y_coarse_size;
 
         std::vector<std::pair<double, double>> joint_positions(numofDOFs + 1);
 
         double x0,y0,x1,y1;
             
-        x1 = ((double)x_size)/2.0;
+        x1 = ((double)x_fine_size)/2.0;
         y1 = 0;
         for(int i = 0; i < numofDOFs; i++){
             x0 = x1;
@@ -286,7 +245,7 @@ public:
         this->goal_fine_x = (int)(x1);
         this->goal_fine_y = (int)(y1);
 
-        x1 = ((double)x_size)/2.0;
+        x1 = ((double)x_fine_size)/2.0;
         y1 = 0;
         for(int i = 0; i < numofDOFs; i++){
             x0 = x1;
@@ -297,10 +256,10 @@ public:
         this->start_fine_x = (int)(x1);
         this->start_fine_y = (int)(y1);
 
-        this->start_coarse_x = std::max(0, std::min(start_fine_x / planning_coarse_factor, this->coarse_x_size - 1));
-        this->start_coarse_y = std::max(0, std::min(start_fine_y / planning_coarse_factor, this->coarse_y_size - 1));
-        this->goal_coarse_x = std::max(0, std::min(goal_fine_x / planning_coarse_factor, this->coarse_x_size - 1));
-        this->goal_coarse_y = std::max(0, std::min(goal_fine_y / planning_coarse_factor, this->coarse_y_size - 1));
+        this->start_coarse_x = std::max(0, std::min(start_fine_x / planning_coarse_factor, this->x_coarse_size - 1));
+        this->start_coarse_y = std::max(0, std::min(start_fine_y / planning_coarse_factor, this->y_coarse_size - 1));
+        this->goal_coarse_x = std::max(0, std::min(goal_fine_x / planning_coarse_factor, this->x_coarse_size - 1));
+        this->goal_coarse_y = std::max(0, std::min(goal_fine_y / planning_coarse_factor, this->y_coarse_size - 1));
 
         this->forward_costs.resize(coarse_map_size, std::numeric_limits<double>::infinity());
         this->backward_costs.resize(coarse_map_size, std::numeric_limits<double>::infinity());
@@ -308,8 +267,8 @@ public:
 
     std::tuple<double*, int, int> generate_and_load_guidance_map(const std::string& output_filename) {
 
-        int idx_start_coarse = get_coarse_idx(start_coarse_x, start_coarse_y);
-        int idx_goal_coarse = get_coarse_idx(goal_coarse_x, goal_coarse_y);
+        int idx_start_coarse = get_idx(start_coarse_x, start_coarse_y, x_coarse_size, y_coarse_size);
+        int idx_goal_coarse = get_idx(goal_coarse_x, goal_coarse_y, x_coarse_size, y_coarse_size);
 
         forward_costs = dijkstra_search_coarse(idx_start_coarse, idx_goal_coarse);
         backward_costs = dijkstra_search_coarse(idx_goal_coarse, idx_start_coarse);
