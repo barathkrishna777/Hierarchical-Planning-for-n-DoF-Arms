@@ -26,10 +26,14 @@ def is_valid_configuration(config, num_dofs, map_file):
     return result == 0
 
 def graderMain(executablePath, gradingCSV):
-    maps = ["robot_maps/map_corridor.txt", "robot_maps/map_challenging.txt", "robot_maps/map_accessible_fine.txt"]
-    num_problems = 4
+    # maps = ["robot_maps/map_corridor.txt", "robot_maps/map_challenging.txt", "robot_maps/map_accessible_fine.txt"]
+    # maps = ["robot_maps/map_corridor.txt"]
+    # maps = ["robot_maps/map_challenging.txt"]
+    # maps = ["robot_maps/map_accessible_fine.txt"]
+    maps = ["maps/map2_fine.txt"]
+    num_problems = 1
     num_repeats = 1
-    planners = [0, 1, 2]
+    planners = [1]
     scores = []
 
     test_cases = []

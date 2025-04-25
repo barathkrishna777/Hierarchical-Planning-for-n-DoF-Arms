@@ -72,6 +72,7 @@ private:
 
         return get_idx(coarse_x, coarse_y, x_coarse_size, y_coarse_size);
     }
+    
 
     inline std::vector<int> get_neighbor_ids(int idx) const {
         std::vector<int> neighbor_ids;
@@ -96,6 +97,8 @@ private:
         dijkstra_coarse_nodes.assign(coarse_map_size, DijkstraNode());
         for (int i = 0; i < coarse_map_size; ++i) {
             dijkstra_coarse_nodes[i].idx = i;
+            dijkstra_coarse_nodes[i].g = std::numeric_limits<double>::infinity();
+            dijkstra_coarse_nodes[i].closed = false;
         }
 
         DijkstraComparator comparator(dijkstra_coarse_nodes);
@@ -165,14 +168,28 @@ private:
             std::cerr << "Error opening file for writing: " << filename << std::endl;
             return;
         }
+
+        int goal_fine_idx = get_idx(goal_fine_x, goal_fine_y, x_fine_size, y_fine_size);
+        std::cout << "forward_cost[goal]: " << forward_costs[idx_goal_coarse] << std::endl;
+        std::cout << "backward_cost[goal]: " << backward_costs[idx_goal_coarse] << std::endl;
+        std::cout << "forward_cost[start]: " << forward_costs[get_coarse_idx_from_fine(get_idx(start_fine_x, start_fine_y, x_fine_size, y_fine_size))] << std::endl;
+        std::cout << "backward_cost[start]: " << backward_costs[get_coarse_idx_from_fine(get_idx(start_fine_x, start_fine_y, x_fine_size, y_fine_size))] << std::endl;
+        
     
         double optimal_cost_L = std::numeric_limits<double>::infinity();
         if (idx_goal_coarse >= 0 && 
             idx_goal_coarse < (int)forward_costs.size()) {
             optimal_cost_L = forward_costs[idx_goal_coarse];
         }
-        const double eps = 0.1;
+
+        std::cout << "optimal_cost_L: " << optimal_cost_L << std::endl;
+
+        const double eps = 0.05;
         double cost_threshold = optimal_cost_L * (1.0 + eps);
+
+        std::cout << "cost_threshold: " << cost_threshold << std::endl;
+        int idx_goal_fine = get_idx(goal_fine_x, goal_fine_y, x_fine_size, y_fine_size);
+        int idx_start_fine = get_idx(start_fine_x, start_fine_y, x_fine_size, y_fine_size);
        
         low_cost_map_file << "height " << y_fine_size << "\n";
         low_cost_map_file << "width "  << x_fine_size << "\n";
@@ -184,9 +201,7 @@ private:
     
             bool is_low_cost = false;
             if (map[i] != 1.0) {
-                int cx = fx / planning_coarse_factor;
-                int cy = fy / planning_coarse_factor;
-                int cidx = get_idx(cx, cy, x_coarse_size, y_coarse_size);
+                int cidx = get_coarse_idx_from_fine(i);
 
                 if (cidx >= 0 && cidx < (int)forward_costs.size()) {
                     double g_start = forward_costs[cidx];
@@ -195,6 +210,12 @@ private:
                         g_goal  != std::numeric_limits<double>::infinity() &&
                         (g_start + g_goal <= cost_threshold)) {
                         is_low_cost = true;
+                    }
+                    if (i == idx_goal_fine) {
+                        std::cout << "cost of goal_fine: " << g_goal + g_start << std::endl;
+                    }
+                    if (i == idx_start_fine) {
+                        std::cout << "cost of start_fine: " << g_start + g_goal << std::endl;
                     }
                 }
             }

@@ -123,7 +123,7 @@ void plannerRRT_Bias(
     double eps = 0.001;
     std::vector<node> tree;
 
-    int planner_coarse_factor = 10;
+    int planner_coarse_factor = 5;
     std::cout << "Identifying low cost regions" << std::endl;
 
     low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
@@ -212,8 +212,8 @@ void plannerRRTStar(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 2000;
-    double eps = 0.001;
+    const int num_nodes = 1000;
+    double eps = 1;
     std::vector<node> tree;
 
     int planner_coarse_factor = 4;

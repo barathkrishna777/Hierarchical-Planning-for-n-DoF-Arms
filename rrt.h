@@ -32,7 +32,7 @@ public:
     }
 
     node new_node(int numofDOFs, double *armgoal_anglesV_rad,
-                  double goal_bias_prob = 0.01, double low_cost_prob = 0.8)
+                  double goal_bias_prob = 0.01, double low_cost_prob = 1.0)
     {
         std::uniform_real_distribution<double> uni_angle(0.0, 2 * PI);
         std::uniform_real_distribution<double> uni01(0.0, 1.0);
@@ -54,8 +54,9 @@ public:
                     n.angles.push_back(uni_angle(generator));
 
                 double *map_used = (uni01(generator) < low_cost_prob) ? low_cost_map : map;
+                bool is_low_cost = (map_used == low_cost_map);
 
-                if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map_used, x_size, y_size))
+                if (IsValidArmConfiguration(n.angles.data(), numofDOFs, map_used, x_size, y_size, is_low_cost))
                 {
                     return n;
                 }
@@ -150,7 +151,7 @@ public:
                 config[j] = tree[id].angles[j] + ((double)(i) / (numofsamples - 1)) * (n.angles[j] - tree[id].angles[j]);
             }
 
-            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, low_cost_map, x_size, y_size))
+            if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size))
             {
                 if (i == 0)
                 {
@@ -275,7 +276,7 @@ public:
         while (current < path.size() - 1)
         {
             int next = current + 1;
-            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map))
+            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map))
             {
                 next++;
             }
@@ -289,31 +290,26 @@ public:
     void save_to_file(const std::vector<node> &tree, const std::vector<int> &path)
     {
         std::ofstream m_log_fstream;
-        m_log_fstream.open("rrt.txt", std::ios::trunc); // Creates new or replaces existing file
+        m_log_fstream.open("rrt_path.txt", std::ios::trunc); // Creates new or replaces existing file
         if (!m_log_fstream.is_open())
         {
             throw std::runtime_error("Cannot open file");
         }
-        // loop through the tree and write out all the joint angles and neighbors
-        for (const auto &node : tree)
-        {
-            m_log_fstream << "Node ID: " << node.id << ", Angles: ";
-            for (int k = 0; k < numofDOFs; ++k)
-            {
-                m_log_fstream << node.angles[k] << ",";
-            }
-
-            m_log_fstream << "Neighbors: ";
-            for (const auto &neighbor : node.neighbors)
-            {
-                m_log_fstream << neighbor.first << " ";
-            }
-            m_log_fstream << std::endl;
-        }
 
         m_log_fstream << "path:" << std::endl;
-        for (const auto &node_id : path)
-            m_log_fstream << node_id << ", ";
+        for (int i = 0; i < path.size() - 1; ++i) {
+            node n1 = tree[path[i]];
+            node n2 = tree[path[i + 1]];
+            double dist = distance(n1, n2);
+	        int numofsamples = std::max(2, (int)(dist / (PI / 10)));
+            for (int j = 0; j < numofsamples; ++j) {
+                for (int k = 0; k < n1.angles.size(); ++k) {
+                    m_log_fstream << n1.angles[k] + ((double)(j) / (numofsamples - 1)) * (n2.angles[k] - n1.angles[k]);
+                    if (k + 1 < n1.angles.size()) m_log_fstream << ", ";
+                }
+                m_log_fstream << std::endl;
+            }
+        }
 
         m_log_fstream.close();
     }

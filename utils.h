@@ -20,6 +20,7 @@
 #include <numeric>
 
 #define GETMAPINDEX(X, Y, XSIZE, YSIZE) (Y*XSIZE + X)
+#define GETLOWCOSTMAPINDEX(X, Y, XSIZE, YSIZE) (X*YSIZE + Y)
 
 // define the directions vector for the 8-connected grid
 #define numDirections 8
@@ -222,7 +223,7 @@ int get_next_point(bresenham_param_t *params) {
 
 
 int IsValidLineSegment(double x0, double y0, double x1, double y1, double*	map,
-			 int x_size, int y_size) {
+			 int x_size, int y_size, bool low_cost) {
 	bresenham_param_t params;
 	int nX, nY; 
 	short unsigned int nX0, nY0, nX1, nY1;
@@ -245,15 +246,20 @@ int IsValidLineSegment(double x0, double y0, double x1, double y1, double*	map,
 	get_bresenham_parameters(nX0, nY0, nX1, nY1, &params);
 	do {
 		get_current_point(&params, &nX, &nY);
-		if(map[GETMAPINDEX(nX,nY,x_size,y_size)] == 1)
-			return 0;
+		if(!low_cost) {
+			if(map[GETMAPINDEX(nX,nY,x_size,y_size)] == 1)
+				return 0;
+		} else {
+			if(map[GETLOWCOSTMAPINDEX(nX,nY,x_size,y_size)] == 1)
+				return 0;
+		}
 	} while (get_next_point(&params));
 
 	return 1;
 }
 
 int IsValidArmConfiguration(double* angles, int numofDOFs, 
-							double*	map, int x_size, int y_size) {
+							double*	map, int x_size, int y_size, bool low_cost=false) {
     double x0,y0,x1,y1;
     int i;
 		
@@ -268,39 +274,11 @@ int IsValidArmConfiguration(double* angles, int numofDOFs,
 		y1 = y0 - LINKLENGTH_CELLS*sin(2*PI-angles[i]);
 
 		//check the validity of the corresponding line segment
-		if(!IsValidLineSegment(x0,y0,x1,y1,map,x_size,y_size))
+		if(!IsValidLineSegment(x0,y0,x1,y1,map,x_size,y_size, low_cost))
 			return 0;
 	}
 	//check the end effector position
 	
-	return 1;
-}
-
-int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map, 
-							double* low_cost_map, int x_size, int y_size) {
-    double x0,y0,x1,y1;
-    int i;
-		
-	 //iterate through all the links starting with the base
-	x1 = ((double)x_size)/2.0;
-	y1 = 0;
-	for(i = 0; i < numofDOFs; i++){
-		//compute the corresponding line segment
-		x0 = x1;
-		y0 = y1;
-		x1 = x0 + LINKLENGTH_CELLS*cos(2*PI-angles[i]);
-		y1 = y0 - LINKLENGTH_CELLS*sin(2*PI-angles[i]);
-
-		//check the validity of the corresponding line segment
-		if(!IsValidLineSegment(x0,y0,x1,y1,map,x_size,y_size))
-			return 0;
-	}
-	//check the end effector position
-	// int end_effector_idx = GETMAPINDEX((int)x1, (int)y1, x_size, y_size);
-	// if (low_cost_map[end_effector_idx] == 1.0) {
-	// 	return 0;
-	// }
-
 	return 1;
 }
 
@@ -323,7 +301,7 @@ struct node {
 inline double distance(node n1, node n2) {
 	double dist = 0;
 	for (int i = 0; i < n1.angles.size(); ++i) {
-		dist += pow(n1.angles[i] - n2.angles[i], 2);
+		dist += pow((n1.angles[i] - n2.angles[i]) * JOINT_WEIGHTS[i], 2);
 	}
 	return sqrt(dist);
 }
@@ -354,7 +332,7 @@ bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size,
 		for (int j = 0; j < numofDOFs; j++)
 			config[j] = n1.angles[j] + ((double)(i) / (numofsamples - 1)) * (n2.angles[j] - n1.angles[j]);
 
-		if (!IsValidArmConfiguration(config.data(), numofDOFs, map, low_cost_map, x_size, y_size))
+		if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size))
 			return false;
 	}
 	

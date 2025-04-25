@@ -182,7 +182,7 @@ public:
         int d = numofDOFs;
         double free_space_vol = pow(2 * M_PI, d);
         double unit_ball_vol = pow(M_PI, d / 2.0) / tgamma(1 + d / 2.0);
-        double gamma_star = 2.0 * pow(1 + 1.0 / d, 1.0 / d) * pow(free_space_vol / unit_ball_vol, 1.0 / d);
+        double gamma_star = pow(1 + 1.0 / d, 1.0 / d) * pow(free_space_vol / unit_ball_vol, 1.0 / d);
         double r = std::min(eps,
                             gamma_star * pow(log(n) / n, 1.0 / d));
         r = std::min(r, eps);
@@ -327,7 +327,7 @@ public:
         while (current < path.size() - 1)
         {
             int next = current + 1;
-            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map, low_cost_map))
+            while (next < path.size() - 1 && obstacle_free(tree[path[current]], tree[path[next + 1]], numofDOFs, x_size, y_size, map))
             {
                 next++;
             }
@@ -338,50 +338,30 @@ public:
         return shortcut_path;
     }
 
-    void save_to_file(
-        const std::vector<node> &tree,
-        const std::vector<int> &path,
-        const std::string &filename = "rrt_star.txt")
+    void save_to_file(const std::vector<node> &tree, const std::vector<int> &path)
     {
-        std::ofstream out(filename, std::ios::trunc);
-        if (!out.is_open())
+        std::ofstream m_log_fstream;
+        m_log_fstream.open("rrt_star_path.txt", std::ios::trunc); // Creates new or replaces existing file
+        if (!m_log_fstream.is_open())
         {
-            throw std::runtime_error("Cannot open file: " + filename);
+            throw std::runtime_error("Cannot open file");
         }
 
-        // 1) Dump each node: ID, angles, neighbor IDs
-        for (const auto &nd : tree)
-        {
-            out << "Node ID: " << nd.id << ", Angles: ";
-            // angles
-            for (size_t k = 0; k < nd.angles.size(); ++k)
-            {
-                out << nd.angles[k];
-                if (k + 1 < nd.angles.size())
-                    out << ", ";
+        m_log_fstream << "path:" << std::endl;
+        for (int i = 0; i < path.size() - 1; ++i) {
+            node n1 = tree[path[i]];
+            node n2 = tree[path[i + 1]];
+            double dist = distance(n1, n2);
+	        int numofsamples = std::max(2, (int)(dist / (PI / 10)));
+            for (int j = 0; j < numofsamples; ++j) {
+                for (int k = 0; k < n1.angles.size(); ++k) {
+                    m_log_fstream << n1.angles[k] + ((double)(j) / (numofsamples - 1)) * (n2.angles[k] - n1.angles[k]);
+                    if (k + 1 < n1.angles.size()) m_log_fstream << ", ";
+                }
+                m_log_fstream << std::endl;
             }
-            // neighbors
-            out << ", Neighbors: ";
-            for (size_t i = 0; i < nd.neighbors.size(); ++i)
-            {
-                out << nd.neighbors[i].first;
-                if (i + 1 < nd.neighbors.size())
-                    out << ' ';
-            }
-            out << "\n";
         }
 
-        // 2) Dump the path (as comma-separated IDs)
-        out << "path:\n";
-        for (size_t i = 0; i < path.size(); ++i)
-        {
-            out << path[i];
-            if (i + 1 < path.size())
-                out << ", ";
-        }
-        out << "\n";
-
-        // 3) Close (happens automatically on destructor, but explicit is fine)
-        out.close();
+        m_log_fstream.close();
     }
 };
