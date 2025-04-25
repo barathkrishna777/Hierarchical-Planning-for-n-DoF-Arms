@@ -14,18 +14,17 @@ class RRT_Star_Planner
 public:
     int x_size, y_size;
     int numofDOFs;
-    double *map, *armgoal_anglesV_rad, *low_cost_map;
+    double *map, *armgoal_anglesV_rad;
     double eps;
     std::mt19937 generator;
     int goal_id = -1;
 
-    RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double *low_cost_map, double eps, double *armgoal_anglesV_rad)
+    RRT_Star_Planner(int x_size, int y_size, int numofDOFs, double *map, double eps, double *armgoal_anglesV_rad)
     {
         this->x_size = x_size;
         this->y_size = y_size;
         this->numofDOFs = numofDOFs;
         this->map = map;
-        this->low_cost_map = low_cost_map;
         this->eps = eps;
         this->armgoal_anglesV_rad = armgoal_anglesV_rad;
         std::random_device rd;
@@ -140,7 +139,7 @@ public:
     {
         double dist = distance(tree[id], n);
 
-        int numofsamples = std::max(2, (int)(dist / (PI / 100)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 1000)));
 
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
@@ -193,7 +192,7 @@ public:
 
         for (auto neighbor : neighbors)
         {
-            if (obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map, low_cost_map))
+            if (obstacle_free(tree[id], tree[neighbor.first], numofDOFs, x_size, y_size, map))
             {
                 double c_new = tree[neighbor.first].g + neighbor.second;
                 if (c_new < tree[id].g)
@@ -208,7 +207,7 @@ public:
         {
             if (neighbor.first != tree[id].parent &&
                 obstacle_free(tree[id], tree[neighbor.first], numofDOFs,
-                              x_size, y_size, map, low_cost_map))
+                              x_size, y_size, map))
             {
 
                 double c_new = tree[id].g + neighbor.second;
@@ -312,9 +311,10 @@ public:
         path.push_back(n.id);
 
         // Perform shortcutting to reduce unnecessary waypoints
-        std::vector<int> shortcut_path = shortcutting(tree, path);
+        // std::vector<int> shortcut_path = shortcutting(tree, path);
 
-        return shortcut_path;
+        // return shortcut_path;
+        return path;
     }
 
     std::vector<int> shortcutting(std::vector<node> &tree, std::vector<int> &path)
@@ -352,7 +352,7 @@ public:
             node n1 = tree[path[i]];
             node n2 = tree[path[i + 1]];
             double dist = distance(n1, n2);
-	        int numofsamples = std::max(2, (int)(dist / (PI / 10)));
+	        int numofsamples = std::max(2, (int)(dist / (PI / 5)));
             for (int j = 0; j < numofsamples; ++j) {
                 for (int k = 0; k < n1.angles.size(); ++k) {
                     m_log_fstream << n1.angles[k] + ((double)(j) / (numofsamples - 1)) * (n2.angles[k] - n1.angles[k]);

@@ -20,7 +20,7 @@
 #include <numeric>
 
 #define GETMAPINDEX(X, Y, XSIZE, YSIZE) (Y*XSIZE + X)
-#define GETLOWCOSTMAPINDEX(X, Y, XSIZE, YSIZE) (X*YSIZE + Y)
+#define GETLOWCOSTMAPINDEX(X, Y, XSIZE, YSIZE) (Y*XSIZE + X)
 
 // define the directions vector for the 8-connected grid
 #define numDirections 8
@@ -254,6 +254,10 @@ int IsValidLineSegment(double x0, double y0, double x1, double y1, double*	map,
 				return 0;
 		}
 	} while (get_next_point(&params));
+	short unsigned int eeX, eeY;
+	ContXY2Cell(nX, nY, &eeX, &eeY, x_size, y_size);
+	if(map[GETMAPINDEX(eeX, eeY, x_size, y_size)] == 1)
+		return 0;
 
 	return 1;
 }
@@ -278,7 +282,11 @@ int IsValidArmConfiguration(double* angles, int numofDOFs,
 			return 0;
 	}
 	//check the end effector position
-	
+	short unsigned eeX, eeY;
+	ContXY2Cell(x1, y1, &eeX, &eeY, x_size, y_size);
+	if(map[GETMAPINDEX(eeX, eeY, x_size, y_size)] == 1)
+		return 0;
+
 	return 1;
 }
 
@@ -307,23 +315,6 @@ inline double distance(node n1, node n2) {
 }
 
 bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, double* map) {
-	double dist = distance(n1, n2);
-	int numofsamples = std::max(1, (int)(dist / (PI / 100)));
-
-	std::vector<double> config(numofDOFs);
-	for (int i = 0; i < numofsamples; i++) {
-		for (int j = 0; j < numofDOFs; j++)
-			config[j] = n1.angles[j] + ((double)(i) / (numofsamples - 1)) * (n2.angles[j] - n1.angles[j]);
-
-		if (!IsValidArmConfiguration(config.data(), numofDOFs, map, x_size, y_size))
-			return false;
-	}
-	
-	return true;
-}
-
-bool obstacle_free(node n1, node n2, int numofDOFs, int x_size, int y_size, 
-				   double* map, double* low_cost_map) {
 	double dist = distance(n1, n2);
 	int numofsamples = std::max(1, (int)(dist / (PI / 1000)));
 

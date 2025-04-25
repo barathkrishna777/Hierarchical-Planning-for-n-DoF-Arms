@@ -139,7 +139,7 @@ public:
         double dist = distance(tree[id], n);
         dist = std::min(dist, eps);
 
-        int numofsamples = std::max(2, (int)(dist / (PI / 100)));
+        int numofsamples = std::max(2, (int)(dist / (PI / 1000)));
 
         std::vector<double> config(numofDOFs);
         std::vector<double> prev_config = tree[id].angles;
@@ -261,9 +261,10 @@ public:
         tree.push_back(n_goal);
         path.push_back(n_goal.id);
 
-        std::vector<int> shortcut_path = shortcutting(tree, path);
+        // std::vector<int> shortcut_path = shortcutting(tree, path);
 
-        return shortcut_path;
+        // return shortcut_path;
+        return path;
     }
 
     std::vector<int> shortcutting(std::vector<node> &tree, std::vector<int> &path)
@@ -301,7 +302,7 @@ public:
             node n1 = tree[path[i]];
             node n2 = tree[path[i + 1]];
             double dist = distance(n1, n2);
-	        int numofsamples = std::max(2, (int)(dist / (PI / 10)));
+	        int numofsamples = std::max(2, (int)(dist / (PI / 5)));
             for (int j = 0; j < numofsamples; ++j) {
                 for (int k = 0; k < n1.angles.size(); ++k) {
                     m_log_fstream << n1.angles[k] + ((double)(j) / (numofsamples - 1)) * (n2.angles[k] - n1.angles[k]);

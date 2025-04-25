@@ -1,101 +1,94 @@
+import os
 import numpy as np
-import argparse
 import subprocess
 import pandas as pd
 from timeit import default_timer as timer
-import random
 
 def convertPIs(aString):
     if aString[-1] == ",":
         aString = aString[:-1]
     aString = aString.replace("pi", "3.141592")
-    vecOfStrings = aString.split(",")
-    return [str(round(eval(anExpression), 2)) for anExpression in vecOfStrings]  # Round to 2 decimal places
+    return [str(round(eval(expr), 2)) for expr in aString.split(",")]
 
-def generate_random_configuration(num_dofs, map_file, max_trials=10000):
-    for attempt in range(max_trials):
-        config = np.round(np.random.uniform(0, 2 * np.pi, num_dofs), 2)  # Round to 2 decimal places
-        config_str = ",".join(map(str, config))
-        if is_valid_configuration(config_str, num_dofs, map_file):
-            return config_str
-    raise RuntimeError(f"No valid configuration after {max_trials} trials")
+def is_valid_configuration(cfg, dofs, map_file):
+    cmd = f"./config_checker.out {map_file} {dofs} {cfg}"
+    return subprocess.run(cmd.split(), check=False).returncode == 0
 
-def is_valid_configuration(config, num_dofs, map_file):
-    command = "./config_checker.out {} {} {}".format(map_file, num_dofs, config)
-    result = subprocess.run(command.split(" "), check=False).returncode
-    return result == 0
+def generate_random_configuration(dofs, map_file, max_trials=10000):
+    for _ in range(max_trials):
+        cfg = np.round(np.random.uniform(0, 2*np.pi, dofs), 2)
+        cfg_str = ",".join(map(str, cfg))
+        if is_valid_configuration(cfg_str, dofs, map_file):
+            return cfg_str
+    raise RuntimeError(f"No valid config after {max_trials} trials on {map_file}")
 
-def graderMain(executablePath, gradingCSV):
-    # maps = ["robot_maps/map_corridor.txt", "robot_maps/map_challenging.txt", "robot_maps/map_accessible_fine.txt"]
-    # maps = ["robot_maps/map_corridor.txt"]
-    # maps = ["robot_maps/map_challenging.txt"]
-    # maps = ["robot_maps/map_accessible_fine.txt"]
-    maps = ["maps/map2_fine.txt"]
-    num_problems = 1
-    num_repeats = 1
-    planners = [1]
-    scores = []
+def run_test(exe, map_file, dofs, start_str, goal_str, pid, tmp="tmp.txt"):
+    plan = f"{exe} {map_file} {dofs} {start_str} {goal_str} {pid} {tmp}"
+    verify = f"./verifier.out {map_file} {dofs} {start_str} {goal_str} {tmp}"
+    try:
+        t0 = timer()
+        subprocess.run(plan.split(), check=True)
+        t = round(timer() - t0, 2)
+        ok = subprocess.run(verify.split(), check=False).returncode == 0
+        if not ok:
+            return False, t, -1.0, -1
+        sol = np.loadtxt(tmp, delimiter=",", skiprows=1)[:, :-1]
+        diffs = np.abs(sol[1:] - sol[:-1])
+        cost = round(np.minimum(diffs, 2*np.pi-diffs).sum(), 2)
+        verts = int(sol.shape[0])
+        return True, t, cost, verts
+    except:
+        return False, 0.0, -1.0, -1
 
-    test_cases = []
-    for i in range(num_problems):
-        map_file = maps[i]
-        num_dofs = 6
-        start = generate_random_configuration(num_dofs, map_file)
-        goal = generate_random_configuration(num_dofs, map_file)
-        test_cases.append((map_file, num_dofs, start, goal))
-
-    for aPlanner in planners:
-        for i, (map_file, num_dofs, start, goal) in enumerate(test_cases):
-            outputSolutionFile = "tmp.txt"
-            startPosString = ",".join(convertPIs(start))
-            goalPosString = ",".join(convertPIs(goal))
-            times, costs, vertices, successes = [], [], [], 0
-
-            for _ in range(num_repeats):
-                print(f"Running {aPlanner} on {map_file} with start {startPosString} and goal {goalPosString}")
-                commandPlan = "{} {} {} {} {} {} {}".format(
-                    executablePath, map_file, num_dofs, startPosString, goalPosString, aPlanner, outputSolutionFile)
-                commandVerify = "./verifier.out {} {} {} {} {}".format(
-                    map_file, num_dofs, startPosString, goalPosString, outputSolutionFile)
-                try:
-                    start_time = timer()
-                    subprocess.run(commandPlan.split(" "), check=True)
-                    timespent = round(timer() - start_time, 2)  # Round execution time
-                    times.append(timespent)
-
-                    returncode = subprocess.run(commandVerify.split(" "), check=False).returncode
-                    success = returncode == 0
-                    successes += success
-
-                    if success:
-                        with open(outputSolutionFile) as f:
-                            solution = [list(map(float, line.split(",")[:-1])) for line in f.readlines()[1:]]
-                            solution = np.array(solution)
-                            difsPos = np.abs(solution[1:] - solution[:-1])
-                            cost = np.minimum(difsPos, np.abs(2*np.pi - difsPos)).sum()
-                            cost = round(cost, 2)  # Round cost
-
-                            costs.append(cost)
-                            vertices.append(solution.shape[0])
-                except Exception as exc:
-                    print(f"Failed: {exc}")
-                    times.append(5.0)
-                    costs.append(-1)
-                    vertices.append(-1)
-
-            scores.append([
-                aPlanner, map_file, i,
-                num_dofs,  # Number of DOFs
-                startPosString,  # Rounded Start Configuration
-                goalPosString,  # Rounded Goal Configuration
-                round(np.mean(times), 2), round(np.std(times), 2),
-                round(np.mean(costs), 2), round(np.std(costs), 2),
-                round(successes / num_repeats, 2)  # Round success rate
-            ])
-
-    df = pd.DataFrame(scores, columns=["planner", "mapName", "problemIndex", "numDOFs", "startConfig", "goalConfig",
-                                       "meanTime", "stdTime", "meanCost", "stdCost", "successRate"])
-    df.to_csv(gradingCSV, index=False)
+def grade_map(exe, map_file, planners, dofs=6, cases=4, repeats=5, out_dir="results"):
+    os.makedirs(out_dir, exist_ok=True)
+    base = os.path.splitext(os.path.basename(map_file))[0]
+    rows = []
+    # generate cases
+    tests = [(generate_random_configuration(dofs, map_file),
+              generate_random_configuration(dofs, map_file))
+             for _ in range(cases)]
+    for pid in planners:
+        for idx,(s,g) in enumerate(tests):
+            s_str = ",".join(convertPIs(s))
+            g_str = ",".join(convertPIs(g))
+            ts, cs, vs, succ = [], [], [], 0
+            for _ in range(repeats):
+                ok,t,c,v = run_test(exe, map_file, dofs, s_str, g_str, pid)
+                ts.append(t); cs.append(c); vs.append(v); succ+=ok
+            rows.append({
+                "planner":     pid,
+                "mapName":     base,
+                "caseIndex":   idx,
+                "numDOFs":     dofs,
+                "startConfig": s_str,
+                "goalConfig":  g_str,
+                "meanTime":    round(np.mean(ts),2),
+                "stdTime":     round(np.std(ts),2),
+                "meanCost":    round(np.mean(cs),2),
+                "stdCost":     round(np.std(cs),2),
+                "meanVerts":   round(np.mean(vs),2),
+                "stdVerts":    round(np.std(vs),2),
+                "successRate": round(succ/repeats,2)
+            })
+    df = pd.DataFrame(rows)
+    out_csv = os.path.join(out_dir, f"{base}_results.csv")
+    df.to_csv(out_csv, index=False)
+    print(f"Wrote {out_csv}")
 
 if __name__ == "__main__":
-    graderMain("./planner.out", "results/results.csv")
+    EXEC = "./planner.out"
+    MAPS = [
+        "map1_fine.txt",
+        "map2_fine.txt",
+        "map3_horizontal.txt",
+        "map4_vertical.txt",
+        "map5_diagonal.txt",
+        "map6_zigzag.txt",
+        "map7_blocks_grid.txt",
+        "map8_long_vertical_blocks.txt"
+    ]
+    PLANNERS = [0, 1, 2]  # your planner IDs
+
+    for m in MAPS:
+        grade_map(EXEC, m, PLANNERS)

@@ -33,8 +33,8 @@ void plannerRRT(
     int *planlength,
     int &vertices)
 {
-    const int num_nodes = 5000;
-    double eps = 0.001;
+    const int num_nodes = 2000;
+    double eps = 0.5;
     std::vector<node> tree;
 
     RRT_Planner rrt(x_size, y_size, numofDOFs, map, map, eps);
@@ -98,13 +98,10 @@ void plannerRRT(
         }
     }
 
-    std::cout << "Path successfully extracted!" << std::endl;
-
     // write out the vertices to a file
     std::ofstream m_vertices_fstream;
     rrt.save_to_file(tree, shortestPath);
 
-    std::cout << "Vertices saved to file!" << std::endl;
 }
 
 // RRT Planner with task biasing
@@ -120,7 +117,7 @@ void plannerRRT_Bias(
     int &vertices)
 {
     const int num_nodes = 500;
-    double eps = 0.001;
+    double eps = 0.5;
     std::vector<node> tree;
 
     int planner_coarse_factor = 5;
@@ -213,17 +210,10 @@ void plannerRRTStar(
     int &vertices)
 {
     const int num_nodes = 1000;
-    double eps = 1;
+    double eps = 0.5;
     std::vector<node> tree;
 
-    int planner_coarse_factor = 4;
-    std::cout << "Identifying low cost regions" << std::endl;
-
-    low_cost l(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, planner_coarse_factor, numofDOFs);
-    double *low_cost_map_data = nullptr;
-    tie(low_cost_map_data, x_size, y_size) = l.generate_and_load_guidance_map("low_cost_map.txt");
-
-    RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, low_cost_map_data, eps, armgoal_anglesV_rad);
+    RRT_Star_Planner rrt_star(x_size, y_size, numofDOFs, map, eps, armgoal_anglesV_rad);
 
     auto start = std::chrono::high_resolution_clock::now();
 

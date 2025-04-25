@@ -184,7 +184,7 @@ private:
 
         std::cout << "optimal_cost_L: " << optimal_cost_L << std::endl;
 
-        const double eps = 0.05;
+        const double eps = 0.15;
         double cost_threshold = optimal_cost_L * (1.0 + eps);
 
         std::cout << "cost_threshold: " << cost_threshold << std::endl;
@@ -198,6 +198,7 @@ private:
         for (int i = 0; i < map_fine_size; ++i) {
             int fx = i % x_fine_size;
             int fy = i / x_fine_size;
+            fy = y_fine_size - fy - 1;
     
             bool is_low_cost = false;
             if (map[i] != 1.0) {
